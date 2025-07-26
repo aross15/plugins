@@ -64,6 +64,49 @@ const multiVariateExtras = {
         document.querySelector('body').addEventListener('click',
             connect.selectSelf, {capture:true});
 
+        // Add a test function to the window for debugging
+        window.testMultiVariateExtras = this.testPlugin;
+    },
+
+    /**
+     * Test function for debugging the plugin
+     */
+    testPlugin: async function() {
+        console.log("=== MultiVariateExtras Test ===");
+        console.log("Dataset Info:", this.datasetInfo);
+        console.log("Dataset List:", this.datasetList);
+        console.log("Current Dataset ID:", this.dsID);
+        
+        if (this.datasetInfo) {
+            console.log("Collections:", this.datasetInfo.collections);
+            console.log("Number of collections:", this.datasetInfo.collections.length);
+            
+            for (let i = 0; i < this.datasetInfo.collections.length; i++) {
+                const coll = this.datasetInfo.collections[i];
+                console.log(`Collection ${i}: ${coll.name} with ${coll.attrs.length} attributes`);
+                for (let j = 0; j < coll.attrs.length; j++) {
+                    const attr = coll.attrs[j];
+                    console.log(`  Attribute ${j}: ${attr.name} (${attr.type})`);
+                }
+            }
+        }
+        
+        // Test data retrieval
+        if (this.datasetInfo && this.datasetInfo.name) {
+            try {
+                console.log("Testing data retrieval...");
+                const allCases = await connect.getAllCasesFrom(this.datasetInfo.name);
+                console.log("Retrieved cases:", Object.keys(allCases).length);
+                if (Object.keys(allCases).length > 0) {
+                    const firstCase = Object.values(allCases)[0];
+                    console.log("First case values:", firstCase.values);
+                }
+            } catch (error) {
+                console.error("Error in data retrieval test:", error);
+            }
+        }
+        
+        console.log("=== End Test ===");
     },
 
     /**
@@ -335,8 +378,13 @@ const multiVariateExtras = {
                 return;
             }
 
-            // Initialize the correlation dataset in CODAP
-            pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
+            const iCallback = undefined;
+
+            try {
+                // Initialize the correlation dataset in CODAP
+                multiVariateExtras.log("Initializing correlation dataset...");
+                await pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
+                multiVariateExtras.log("Correlation dataset initialized successfully");
 
             // Create a mapping of attribute names to their order in the table
             const attributeOrderMap = new Map();
@@ -376,7 +424,10 @@ const multiVariateExtras = {
                             
                             try {
                                 // Get all cases and extract numeric values for correlation
+                                multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.name}`);
                                 const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
+                                multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
+                                
                                 const bivariateData = [];
                                 
                                 Object.values(allCases).forEach(aCase => {
@@ -389,6 +440,8 @@ const multiVariateExtras = {
                                     
                                     bivariateData.push({x: num1, y: num2});
                                 });
+                                
+                                multiVariateExtras.log(`Created ${bivariateData.length} data points for correlation`);
                                 
                                 // Use our custom correlation function that also computes missingness correlation
                                 const correlationResults = multiVariateExtras.correlationUtils.onlinePearsonWithMissingCorr(bivariateData);
@@ -457,12 +510,21 @@ const multiVariateExtras = {
                         };
 
                         // Send the data to CODAP
-                        pluginHelper.createItems(correlationCase);
+                        try {
+                            await pluginHelper.createItems(correlationCase, multiVariateExtras.dataSetCorrelations.name, iCallback);
+                            multiVariateExtras.log(`Created correlation entry for ${attr_name1} vs ${attr_name2}`);
+                        } catch (error) {
+                            multiVariateExtras.error(`Failed to create correlation entry for ${attr_name1} vs ${attr_name2}: ${error}`);
+                        }
                     }
                 }
             }
 
             multiVariateExtras.log("Correlation table computation completed");
+            } catch (error) {
+                multiVariateExtras.error(`Error in computeCorrelationTable: ${error}`);
+                console.error("Full error details:", error);
+            }
         },
 
         /**
@@ -787,7 +849,7 @@ const multiVariateExtras = {
         defaultTagName : "Tag",
     },
     log: function (msg) {
-        // console.log(msg);
+        console.log(msg);
     },
     warn: function (msg) {
         console.warn(msg);
