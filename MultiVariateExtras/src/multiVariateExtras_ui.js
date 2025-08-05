@@ -48,6 +48,8 @@ const multiVariateExtras_ui = {
         
         // Update correlation dataset name on initialization
         this.updateCorrelationDatasetName();
+        // Update plot matrix dataset name on initialization
+        this.updatePlotMatrixDatasetName();
     },
 
     updateCount: 0,
@@ -71,6 +73,7 @@ const multiVariateExtras_ui = {
             this.doTagVisibility();
             await this.makeSummary();
             this.updateCorrelationDatasetName();  // Update correlation tab dataset name
+            this.updatePlotMatrixDatasetName();   // Update plot matrix tab dataset name
         }
 
         //  more miscellaneous visibility
@@ -605,6 +608,29 @@ const multiVariateExtras_ui = {
         }
     },
 
+    /**
+     * Update the dataset name display in the plot matrix tab
+     */
+    updatePlotMatrixDatasetName: function () {
+        const plotMatrixDatasetElement = document.getElementById("plot-matrix-dataset-name");
+        if (plotMatrixDatasetElement) {
+            if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.name) {
+                // Use the dataset name from datasetInfo
+                plotMatrixDatasetElement.textContent = multiVariateExtras.datasetInfo.name;
+            } else if (multiVariateExtras.datasetList && multiVariateExtras.datasetList.length > 0) {
+                // Fallback: find the current dataset by ID and use its title
+                const currentDataset = multiVariateExtras.datasetList.find(ds => ds.id === multiVariateExtras.dsID);
+                if (currentDataset) {
+                    plotMatrixDatasetElement.textContent = currentDataset.title || currentDataset.name;
+                } else {
+                    plotMatrixDatasetElement.textContent = "No dataset selected";
+                }
+            } else {
+                plotMatrixDatasetElement.textContent = "No dataset selected";
+            }
+        }
+    },
+
 
     /*
         dataset menu section
@@ -651,6 +677,8 @@ const multiVariateExtras_ui = {
                 
                 // Update correlation tab dataset name when single dataset is auto-selected
                 multiVariateExtras_ui.updateCorrelationDatasetName();
+                // Update plot matrix tab dataset name when single dataset is auto-selected
+                multiVariateExtras_ui.updatePlotMatrixDatasetName();
 
             } else {
                 //      in this case (2 or more datasets) we have to make a menu

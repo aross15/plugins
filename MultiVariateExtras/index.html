@@ -78,6 +78,7 @@
 <div id="tabs">
     <ul>
         <li><a href="#dataset">dataset</a></li>
+        <li><a href="#plot-matrix">plot matrix</a></li>
         <li><a href="#correlation">correlation</a></li>
         <li><a href="#atts">attributes</a></li>
         <li><a href="#tag-cases">tag cases</a></li>
@@ -102,6 +103,16 @@
 
         </div>
 
+        <div id="codapVersionDIV" class="stripe">
+            <div class="stripe-element">
+                <strong>CODAP version?</strong><br>
+                <input type="radio" name="codap-version" value="v2" id="version-v2-radio" checked>
+                <label for="version-v2-radio">Version 2</label>
+                <input type="radio" name="codap-version" value="v3" id="version-v3-radio">
+                <label for="version-v3-radio">Version 3</label>
+            </div>
+        </div>
+
         <div id="chooseDatasetDIV" class="stripe">
             <div class="stripe-element" id="chooseDatasetControl"></div>
 
@@ -109,6 +120,43 @@
 
         <div id="summaryDIV" class="stripe">
             <div id="summaryInfo" class="stripe-element"></div>
+        </div>
+
+    </div>
+
+    <div id="plot-matrix">
+        <div class="stripe">
+            <div style="text-align: center; font-weight: bold; margin-bottom: 20px;">
+                Dataset: <span id="plot-matrix-dataset-name">No dataset selected</span>
+            </div>
+        </div>
+
+        <div class="stripe" style="text-align: center; margin-bottom: 20px;">
+            <label style="display: inline-flex; align-items: center; cursor: pointer;">
+                <input 
+                    type="checkbox" 
+                    id="use-segmented-bars-checkbox" 
+                    checked 
+                    style="margin-right: 8px;">
+                <span style="font-size: 14px;">Use segmented bar charts as needed</span>
+            </label>
+        </div>
+
+        <div class="stripe" style="text-align: center; margin-bottom: 30px;">
+            <button 
+                id="create-plot-matrix-button" 
+                onclick="multiVariateExtras.handlers.createPlotMatrix()"
+                style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #FF9800; color: white; border: none; border-radius: 4px;">
+                create plot matrix
+            </button>
+        </div>
+
+        <div style="text-align: center; font-size: 12px; color: #666; margin-bottom: 20px;">
+            Create a matrix of scatter plots showing relationships between all numeric attributes in the dataset.
+        </div>
+
+        <div id="plot-matrix-content" style="min-height: 200px;">
+            <!-- Space for plot matrix features -->
         </div>
 
     </div>
@@ -132,6 +180,21 @@
                 onclick="multiVariateExtras.handlers.graphCorrelationTable()"
                 style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #2196F3; color: white; border: none; border-radius: 4px;">
                 create graph
+            </button>
+        </div>
+        
+        <div class="stripe" style="text-align: center; margin-bottom: 20px;">
+            <button 
+                id="debug-tile-row-button" 
+                onclick="multiVariateExtras.debugTileRowType()"
+                style="margin-right: 20px; padding: 8px 16px; font-size: 12px; cursor: pointer; background-color: #9C27B0; color: white; border: none; border-radius: 4px;">
+                debug tile row (v3)
+            </button>
+            <button 
+                id="ensure-free-tile-row-button" 
+                onclick="multiVariateExtras.ensureFreeTileRow()"
+                style="margin-right: 20px; padding: 8px 16px; font-size: 12px; cursor: pointer; background-color: #E91E63; color: white; border: none; border-radius: 4px;">
+                ensure free tile row (v3)
             </button>
         </div>
 

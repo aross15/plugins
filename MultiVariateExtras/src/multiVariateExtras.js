@@ -7,7 +7,7 @@
  ==========================================================================
 multiVariateExtras in multiVariateExtras
 
-Author:   Tim Erickson
+Author:   Andrew Ross, heavily based on Choosy code by Tim Erickson
 
 Copyright (c) 2018 by The Concord Consortium, Inc. All rights reserved.
 
@@ -39,6 +39,7 @@ const multiVariateExtras = {
 
     tagsAttributeName: "Tag",
     attributeGroupingMode : null,
+    codapVersion: "v2",    //  stores the selected CODAP version (v2 or v3)
 
     initialize: async function () {
         this.attributeGroupingMode = this.constants.kGroupAttributeByBatchMode;
@@ -63,8 +64,347 @@ const multiVariateExtras = {
         // on background click, become selected
         document.querySelector('body').addEventListener('click',
             connect.selectSelf, {capture:true});
-
+        
+        // Set up CODAP version radio button event handlers
+        this.setupCodapVersionHandlers();
     },
+
+    /**
+     * Sets up event handlers for the CODAP version radio buttons
+     */
+    setupCodapVersionHandlers: function() {
+        const v2Radio = document.getElementById('version-v2-radio');
+        const v3Radio = document.getElementById('version-v3-radio');
+        
+        if (v2Radio && v3Radio) {
+            v2Radio.addEventListener('change', function() {
+                if (this.checked) {
+                    multiVariateExtras.codapVersion = "v2";
+                    multiVariateExtras.log("CODAP version set to v2");
+                }
+            });
+            
+            v3Radio.addEventListener('change', function() {
+                if (this.checked) {
+                    multiVariateExtras.codapVersion = "v3";
+                    multiVariateExtras.log("CODAP version set to v3");
+                }
+            });
+        }
+    },
+
+    /**
+     * Gets the UI layout information for the plugin window in CODAP v3.
+     * 
+     * This function:
+     * 1. Finds the plugin element through DOM search using web view elements
+     * 2. Uses getBoundingClientRect() to get the plugin's position and dimensions
+     * 3. Returns the layout information for positioning calculations
+     * 
+     * @returns {Object} Layout object with left, top, width, height coordinates
+     */
+    getMVE_UI_layoutV3: function() {
+        try {
+            console.log("c=== V3 UI Layout Debug ===");
+            multiVariateExtras.log("m=== V3 UI Layout Debug ===");
+
+            // In v3, we need to find the plugin element through DOM search
+            // Look for web view elements that contain iframes
+            const webViewElements = document.querySelectorAll('.codap-web-view-body');
+            console.log("cFound web view elements:", webViewElements.length);
+            console.log("c web view elements:", webViewElements);
+            multiVariateExtras.log("mFound web view elements:", webViewElements.length);
+            multiVariateExtras.log("m web view elements:", webViewElements);
+
+            
+            // Try to get interactive frame ID from parent window if possible
+            let interactiveFrameId = null;
+            try {
+                // Try to access parent window to get frame info
+                if (window.parent && window.parent !== window) {
+                    console.log("cParent window accessible, trying to get frame info");
+                    console.log(window.parent);
+                    multiVariateExtras.log("mParent window accessible, trying to get frame info");
+                    multiVariateExtras.log(window.parent);
+                
+                    // Note: This might not work due to cross-origin restrictions
+                }
+            } catch (e) {
+                console.log("cCannot access parent window due to cross-origin restrictions");
+                console.log(e);
+                multiVariateExtras.log("mCannot access parent window due to cross-origin restrictions");
+                multiVariateExtras.log(e);
+            }
+            
+            // Find the one that contains our iframe
+            for (let i = 0; i < webViewElements.length; i++) {
+                const webViewElement = webViewElements[i];
+                const iframe = webViewElement.querySelector('iframe');
+                // output both of those console log and multiVariateExtras.log, including just "i"
+                console.log("c i", i);
+                multiVariateExtras.log("m i", i);
+                console.log("c webViewElement", webViewElement);
+                multiVariateExtras.log("m webViewElement", webViewElement);
+                console.log("c iframe", iframe);
+                multiVariateExtras.log("m iframe", iframe);
+                console.log("c iframe.contentWindow", iframe.contentWindow);
+                multiVariateExtras.log("m iframe.contentWindow", iframe.contentWindow);
+                console.log("c iframe.contentWindow === window", iframe.contentWindow === window);
+                multiVariateExtras.log("m iframe.contentWindow === window", iframe.contentWindow === window);
+                console.log("c iframe.contentWindow === window", iframe.contentWindow === window);
+                multiVariateExtras.log("m iframe.contentWindow === window", iframe.contentWindow === window);
+
+                if (iframe && iframe.contentWindow === window) {
+                    pluginElement = webViewElement;
+                    console.log("c Found our plugin element via v3 method:", pluginElement);
+                    multiVariateExtras.log("m Found our plugin element via v3 method:", pluginElement);
+                    break;
+                }
+            }
+            
+            if (!pluginElement) {
+                // Fallback: try to find any web view element that might be our plugin
+                // This is less reliable but might work in some cases
+                const webViewElement = document.querySelector('.codap-web-view-body');
+                if (webViewElement) {
+                    pluginElement = webViewElement;
+                    console.log("Using fallback web view element:", pluginElement);
+                } else {
+                    // Try alternative selectors that might work in v3
+                    const alternativeSelectors = [
+                        '[data-testid="codap-web-view"]',
+                        '.codap-web-view-iframe-wrapper',
+                        '.web-view-body'
+                    ];
+                    
+                    for (const selector of alternativeSelectors) {
+                        const element = document.querySelector(selector);
+                        if (element) {
+                            pluginElement = element;
+                            console.log(`Using alternative selector "${selector}":`, pluginElement);
+                            break;
+                        }
+                    }
+                    
+                    if (!pluginElement) {
+                        multiVariateExtras.warn("Could not find plugin web view element in v3");
+                        return { left: 100, top: 500, width: 400, height: 300 }; // fallback layout
+                    }
+                }
+            }
+            
+            if (pluginElement) {
+                const pluginRect = pluginElement.getBoundingClientRect();
+                console.log("c Plugin rect from getBoundingClientRect():", pluginRect);
+                multiVariateExtras.log("m Plugin rect from getBoundingClientRect():", pluginRect);
+                
+                // Check if we got valid dimensions
+                if (pluginRect.width === 0 || pluginRect.height === 0) {
+                    console.log("c Plugin element has zero dimensions - might not be fully loaded");
+                    multiVariateExtras.log("m Plugin element has zero dimensions - might not be fully loaded");
+                    return { left: 108, top: 300, width: 400, height: 300 }; // fallback layout
+                }
+                
+                const layout = { 
+                    left: pluginRect.left, 
+                    top: pluginRect.top, 
+                    width: pluginRect.width, 
+                    height: pluginRect.height 
+                };
+                
+                console.log("c Plugin window layout: left=", layout.left, "top=", layout.top, "width=", layout.width, "height=", layout.height);
+                multiVariateExtras.log("m Plugin window layout: left=", layout.left, "top=", layout.top, "width=", layout.width, "height=", layout.height);
+                
+                console.log("Returning layout object:", layout);
+                return layout;
+            }
+        } catch (error) {
+            multiVariateExtras.error(`Error getting UI layout in v3: ${error}`);
+            return { left: 109, top: 400, width: 400, height: 300 }; // fallback layout
+        }
+    },
+
+    /**
+     * Gets the UI layout information for the plugin window in CODAP v2.
+     * 
+     * This function:
+     * 1. Gets the plugin iframe element using window.frameElement
+     * 2. Uses getBoundingClientRect() to get the plugin's position and dimensions
+     * 3. Returns the layout information for positioning calculations
+     * 
+     * @returns {Object} Layout object with left, top, width, height coordinates
+     */
+    getMVE_UI_layoutV2: function() {
+        try {
+            console.log("c=== V2 UI Layout Debug ===");
+            multiVariateExtras.log("m=== V2 UI Layout Debug ===");
+
+            // v2 approach - use window.frameElement
+            const pluginIframe = window.frameElement;
+            if (!pluginIframe) {
+                multiVariateExtras.warn("Could not find plugin iframe element - this might be running outside of CODAP");
+                return { left: 107, top: 200, width: 400, height: 300 }; // fallback layout
+            }
+            
+            // Get the plugin window's position and dimensions
+            const pluginRect = pluginIframe.getBoundingClientRect();
+            console.log("Plugin iframe element:", pluginIframe);
+            console.log("Plugin rect from getBoundingClientRect():", pluginRect);
+            
+            // Check if we got valid dimensions
+            if (pluginRect.width === 0 || pluginRect.height === 0) {
+                multiVariateExtras.warn("Plugin iframe has zero dimensions - might not be fully loaded");
+                return { left: 108, top: 300, width: 400, height: 300 }; // fallback layout
+            }
+            
+            const layout = { 
+                left: pluginRect.left, 
+                top: pluginRect.top, 
+                width: pluginRect.width, 
+                height: pluginRect.height 
+            };
+            
+            multiVariateExtras.log(`Plugin window layout: left=${layout.left}, top=${layout.top}, width=${layout.width}, height=${layout.height}`);
+            multiVariateExtras.log(`CODAP version detected: v2`);
+            
+            console.log("Returning layout object:", layout);
+            return layout;
+        } catch (error) {
+            multiVariateExtras.error(`Error getting UI layout in v2: ${error}`);
+            return { left: 110, top: 400, width: 400, height: 300 }; // fallback layout
+        }
+    },
+
+    /**
+     * Calculates the correlation graph layout based on the UI window position.
+     * 
+     * This function determines the CODAP version, gets the UI layout, and calculates
+     * the position for the correlation graph with specified offsets.
+     * Default offsets are 10 pixels to the right and 0 pixels down;
+     * 10 pixels so the graph doesn't quite touch the UI window, so it's easier to click on its border.
+     * 
+     * @param {Object} offsets - Optional offset parameters
+     * @param {number} offsets.xoffset - X offset from the right edge of the UI window (default: 10)
+     * @param {number} offsets.yoffset - Y offset from the top edge of the UI window (default: 0)
+     * @returns {Object} Position object with x, y coordinates
+     */
+    calculateCorrelGraphLayout: function(offsets = {}) {
+        try {
+            console.log("c=== Correlation Graph Layout Calculation Debug ===");
+            multiVariateExtras.log("m=== Correlation Graph Layout Calculation Debug ===");
+
+            // Use the selected CODAP version from radio buttons
+            const isV3 = this.codapVersion === "v3";
+            console.log(`cCODAP version from radio buttons: ${this.codapVersion}`);
+            multiVariateExtras.log(`mCODAP version from radio buttons: ${this.codapVersion}`);
+ 
+            // Get the UI layout based on CODAP version
+            let layout;
+            if (isV3) {
+                layout = this.getMVE_UI_layoutV3();
+            } else {
+                layout = this.getMVE_UI_layoutV2();
+            }
+            
+            // Set default offsets if not provided
+            const xoffset = offsets.xoffset !== undefined ? offsets.xoffset : 10;
+            const yoffset = offsets.yoffset !== undefined ? offsets.yoffset : 0;
+            
+            // Calculate the position: left + width + xoffset, top + yoffset
+            const x = layout.left + layout.width + xoffset;
+            const y = layout.top + yoffset;
+            
+            console.log(`cCalculated correlation graph position: x=${x}, y=${y} (layout: left=${layout.left}, top=${layout.top}, width=${layout.width}, height=${layout.height}, xoffset=${xoffset}, yoffset=${yoffset})`);
+            multiVariateExtras.log(`mCalculated correlation graph position: x=${x}, y=${y} (layout: left=${layout.left}, top=${layout.top}, width=${layout.width}, height=${layout.height}, xoffset=${xoffset}, yoffset=${yoffset})`);
+            
+            const result = { x: x, y: y };
+            console.log("Returning correlation graph position:", result);
+            return result;
+        } catch (error) {
+            multiVariateExtras.error(`Error calculating correlation graph layout: ${error}`);
+            return { x: 111, y: 400 }; // fallback position
+        }
+    },
+
+    /**
+     * Calculates the layout positions for plot matrix graphs
+     * @param {number} rows - Number of rows in the plot matrix
+     * @param {number} cols - Number of columns in the plot matrix
+     * @param {Object} options - Optional object with offsets, widthmult, and heightmult properties
+     * @returns {Array} 2D array of objects with x, y, width, height properties
+     * widthmult and heightmult get multiplied by the width and height of the UI window
+     * to determine the width and height of each plot in the matrix.
+     * Widthmult defaults to 1.0, and heightmult defaults to 0.5, because
+     * as of 2025-07-30, the UI window starts at 333px wide and 444px tall,
+     * and the defaults CODAP graph size seems to be 300-by-200 or 300-by-300
+     * (depending on the zoom level???). Since 300/333 is about 1.0 and 200/444 is about 0.5,
+     * these defaults seem to work well to give us default sizes.
+     * This way, the user can control the size of the plots by resizing the 
+     * UI window before creating the plot matrix.
+     * xoffset and yoffset are offsets from the previous graph each time.
+     * It's highly unlikely that we'd want to use a different number of rows than columns,
+     * but it doesn't hurt to allow it.
+     */
+    calculatePlotMatrixLayout: function(rows, cols, options = {}) {
+        try {
+            console.log("c=== Plot Matrix Layout Calculation Debug ===");
+
+            // Use the selected CODAP version from radio buttons
+            const isV3 = this.codapVersion === "v3";
+            console.log(`cCODAP version from radio buttons: ${this.codapVersion}`);
+
+            // Get the UI layout based on CODAP version
+            let layout;
+            if (isV3) {
+                layout = this.getMVE_UI_layoutV3();
+            } else {
+                layout = this.getMVE_UI_layoutV2();
+            }
+            
+            // Set default options if not provided
+            const xoffset = options.xoffset !== undefined ? options.xoffset : 5;
+            const yoffset = options.yoffset !== undefined ? options.yoffset : 5;
+            const widthmult = options.widthmult !== undefined ? options.widthmult : 1.0;
+            const heightmult = options.heightmult !== undefined ? options.heightmult : 0.5;
+            
+            // Calculate individual plot dimensions
+            const plotWidth = layout.width * widthmult;
+            const plotHeight = layout.height * heightmult;
+            
+            // Calculate starting position: the first plot has its upper-left
+            // corner at the bottom-right corner of the UI window, no offsets needed.
+            const startX = layout.left + layout.width;
+            const startY = layout.top + layout.height;
+            
+            // Create 2D array of positions
+            const positions = [];
+            for (let row = 0; row < rows; row++) {
+                const rowPositions = [];
+                for (let col = 0; col < cols; col++) {
+                    const x = startX + col * (plotWidth+xoffset);
+                    const y = startY + row * (plotHeight+yoffset);
+                    
+                    rowPositions.push({
+                        x: x,
+                        y: y,
+                        width: plotWidth,
+                        height: plotHeight
+                    });
+                }
+                positions.push(rowPositions);
+            }
+            
+            console.log(`cCalculated plot matrix layout: ${rows}x${cols} grid, plot size: ${plotWidth}x${plotHeight}, start position: (${startX}, ${startY})`);
+            
+            return positions;
+        } catch (error) {
+            multiVariateExtras.error(`Error calculating plot matrix layout: ${error}`);
+            // Return fallback 2D array with single position
+            return [[{ x: 112, y: 400, width: 345, height: 210 }]];
+        }
+    },
+
+
 
     /**
      * Provides a fresh, empty version of `multiVariateExtras.state`.
@@ -335,8 +675,13 @@ const multiVariateExtras = {
                 return;
             }
 
-            // Initialize the correlation dataset in CODAP
-            pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
+            const iCallback = undefined;
+
+            try {
+                // Initialize the correlation dataset in CODAP
+                multiVariateExtras.log("Initializing correlation dataset...");
+                await pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
+                multiVariateExtras.log("Correlation dataset initialized successfully");
 
             // Create a mapping of attribute names to their order in the table
             const attributeOrderMap = new Map();
@@ -376,7 +721,10 @@ const multiVariateExtras = {
                             
                             try {
                                 // Get all cases and extract numeric values for correlation
+                                multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.name}`);
                                 const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
+                                multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
+                                
                                 const bivariateData = [];
                                 
                                 Object.values(allCases).forEach(aCase => {
@@ -389,6 +737,8 @@ const multiVariateExtras = {
                                     
                                     bivariateData.push({x: num1, y: num2});
                                 });
+                                
+                                multiVariateExtras.log(`Created ${bivariateData.length} data points for correlation`);
                                 
                                 // Use our custom correlation function that also computes missingness correlation
                                 const correlationResults = multiVariateExtras.correlationUtils.onlinePearsonWithMissingCorr(bivariateData);
@@ -457,19 +807,65 @@ const multiVariateExtras = {
                         };
 
                         // Send the data to CODAP
-                        pluginHelper.createItems(correlationCase);
+                        try {
+                            await pluginHelper.createItems(correlationCase, multiVariateExtras.dataSetCorrelations.name, iCallback);
+                            multiVariateExtras.log(`Created correlation entry for ${attr_name1} vs ${attr_name2}`);
+                        } catch (error) {
+                            multiVariateExtras.error(`Failed to create correlation entry for ${attr_name1} vs ${attr_name2}: ${error}`);
+                        }
                     }
                 }
             }
 
             multiVariateExtras.log("Correlation table computation completed");
+            } catch (error) {
+                multiVariateExtras.error(`Error in computeCorrelationTable: ${error}`);
+                console.error("Full error details:", error);
+            }
+        },
+
+        /**
+         * Moves a graph component to a new position
+         * @param {string} componentId - The ID of the component to move
+         * @param {number} x - X coordinate for new position
+         * @param {number} y - Y coordinate for new position
+         * @param {number} width - Optional new width
+         * @param {number} height - Optional new height
+         * @returns {Promise} - Promise that resolves with the result of the move
+         */
+        moveGraph: async function (componentId, x, y, width = null, height = null) {
+            try {
+                const position = { x, y };
+                const dimensions = (width && height) ? { width, height } : null;
+                
+                const result = await connect.moveGraph(componentId, position, dimensions);
+                
+                if (result.success) {
+                    multiVariateExtras.log(`Moved graph ${componentId} to position (${x}, ${y})`);
+                    if (dimensions) {
+                        multiVariateExtras.log(`Resized graph to ${width}x${height}`);
+                    }
+                } else {
+                    multiVariateExtras.warn(`Failed to move graph: ${result.values ? result.values.error : "unknown error"}`);
+                }
+                
+                return result;
+            } catch (error) {
+                multiVariateExtras.error(`Error moving graph: ${error}`);
+                throw error;
+            }
         },
 
         /**
          * Handles user click on "create graph" button in correlation tab
          * Creates a scatter plot graph for correlation visualization using the correlation dataset
+         * @param {Object} position - Optional position object with x, y coordinates (if not provided, will be calculated relative to plugin window)
+         * @param {Object} dimensions - Optional dimensions object with width, height
+         * @returns {Promise} - Promise that resolves with the component ID if successful
          */
-        graphCorrelationTable: async function () {
+        graphCorrelationTable: async function (position = null, dimensions = null) {
+            console.log("graphCorrelationTable");
+            console.log(position);
             // Check if the correlation dataset exists
             const correlationDatasetName = multiVariateExtras.dataSetCorrelations.name;
             
@@ -482,7 +878,18 @@ const multiVariateExtras = {
 
                 if (!datasetCheck.success) {
                     multiVariateExtras.warn("Correlation dataset not found. Please compute the correlation table first.");
-                    return;
+                    return null;
+                }
+
+                // If position is not provided, calculate it relative to the plugin window
+                let calculatedPosition = position;
+                if (!position) {
+                    calculatedPosition = multiVariateExtras.calculateCorrelGraphLayout();
+                    console.log("c calculatedPosition", calculatedPosition);
+                    multiVariateExtras.log("m calculatedPosition", calculatedPosition);
+                } else {
+                    console.log("c position is provided", position);
+                    multiVariateExtras.log("m position is provided", position);
                 }
 
                 // Create a scatter plot using the correlation dataset with correlation as legend
@@ -490,20 +897,229 @@ const multiVariateExtras = {
                     correlationDatasetName,
                     "Predictor",
                     "Response",
-                    "correlation"
+                    "correlation",
+ //                   calculatedPosition,
+ //                   dimensions
                 );
 
                 if (result.success) {
-                    multiVariateExtras.log(`Created correlation graph: ${result.values.id}`);
-                    multiVariateExtras.log(`Graph shows Predictor vs Response with correlation legend`);
+                    const componentId = result.values.id;
+                    multiVariateExtras.log(`m Created correlation matrix graph, id= ${componentId}`);
+                    console.log("c Created correlation matrix graph, id= ", componentId);
+                    multiVariateExtras.log(`mGraph shows correlation as a color for each pair of attributes`);
+                    console.log("c Graph shows correlation as a color for each pair of attributes");
+                    if (calculatedPosition) {
+                        multiVariateExtras.log(`Graph attempted to be positioned at x: ${calculatedPosition.x}, y: ${calculatedPosition.y}`);
+                        console.log("c Graph attempted to be positioned at x: ", calculatedPosition.x, "y: ", calculatedPosition.y);
+                    }else{
+                        multiVariateExtras.log(`calculatedPosition is null`);
+                    }
+                    if (dimensions) {
+                        multiVariateExtras.log(`Graph sized to width: ${dimensions.width}, height: ${dimensions.height}`);
+                    }
+                    return componentId; // Return the component ID for potential future moves
                 } else {
-                    multiVariateExtras.warn(`Failed to create correlation graph: ${result.values ? result.values.error : "unknown error"}`);
+                    console.log("c Failed to create correlation graph: ", result.values ? result.values.error : "unknown error");
+                    multiVariateExtras.log("m Failed to create correlation graph: ", result.values ? result.values.error : "unknown error");
+                    console.log("c result", result);
+                    multiVariateExtras.log("m result", result);
+                    return null;
                 }
             } catch (error) {
-                multiVariateExtras.error(`Error creating correlation graph: ${error}`);
+                console.log("c Error creating correlation graph: ", error);
+                multiVariateExtras.log("m Error creating correlation graph: ", error);
+                return null;
             }
         },
 
+        /**
+         * Handles user click on "create plot matrix" button in plot matrix tab.
+         * Creates a matrix of  plots showing relationships between all pairs of attributes.
+         * @param {Object} position - Optional position object with x, y coordinates
+         * @param {Object} dimensions - Optional dimensions object with width, height
+         * @returns {Promise} - Promise that resolves with the component ID if successful
+         */
+        createPlotMatrix: async function (position = null, dimensions = null) {
+            console.log("createPlotMatrix");
+            
+            if (!multiVariateExtras.datasetInfo) {
+                multiVariateExtras.warn("No dataset selected for plot matrix analysis");
+                return null;
+            }
+
+            try {
+                const attributes = multiVariateExtras.getAttributesWithTypes();
+                
+                if (attributes.length === 0) {
+                    multiVariateExtras.warn("No attributes found in the dataset");
+                    return null;
+                }
+
+                // Get the checkbox value for useSegmentedBars
+                const useSegmentedBarsCheckbox = document.getElementById('use-segmented-bars-checkbox');
+                const useSegmentedBars = useSegmentedBarsCheckbox ? useSegmentedBarsCheckbox.checked : true; // Default to true if checkbox not found
+
+                multiVariateExtras.log(`Creating plot matrix with ${attributes.length} attributes: ${attributes.map(a => a.name).join(', ')} with useSegmentedBars=${useSegmentedBars}`);
+
+                // Calculate layout for the plot matrix
+                const numAttributes = attributes.length;
+                const layout = multiVariateExtras.calculatePlotMatrixLayout(numAttributes, numAttributes);
+
+                // Create graphs for each pair of attributes
+                const createdGraphs = [];
+                for (let i = 0; i < numAttributes; i++) {
+                    for (let j = 0; j < numAttributes; j++) {
+                        const position = layout[i][j];
+
+                        const attr1 = attributes[i];
+                        const attr2 = attributes[j];
+                        let graphId; // Declare graphId outside the if-else blocks
+                        
+                        // if we would be plotting a variable against itself, then
+                        // don't have the attribute on the y-axis, just the x-axis.
+                        // That way we get a univariate plot of the variable; CODAP defaults to a dotplot.
+                        // Some packages use a histogram instead.
+                        if( i === j ) { // would plot a variable against itself; 
+                            graphId = await multiVariateExtras.handlers.createPairGraph(
+                                attr1.name, attr1.type,
+                                null, null,
+                                position,
+                                useSegmentedBars
+                            );
+                        } else { // usual case: plot two different variables against each other
+                            graphId = await multiVariateExtras.handlers.createPairGraph(
+                                attr1.name, attr1.type,
+                                attr2.name, attr2.type,
+                                position,
+                                useSegmentedBars
+                            );
+                        }
+                        
+                        if (graphId) {
+                            createdGraphs.push(graphId);
+                        }
+                    }
+                }
+
+                multiVariateExtras.log(`Created ${createdGraphs.length} graphs in plot matrix`);
+                return createdGraphs;
+            } catch (error) {
+                console.log("Error creating plot matrix: ", error);
+                multiVariateExtras.log("Error creating plot matrix: ", error);
+                return null;
+            }
+        },
+
+        /**
+         * Creates a graph for a specific pair of attributes
+         * @param {string} attr1Name - Name of the first attribute
+         * @param {string} attr1Type - Type of the first attribute
+         * @param {string} attr2Name - Name of the second attribute
+         * @param {string} attr2Type - Type of the second attribute
+         * @param {Object} position - Position object with x, y, width, height properties
+         * @param {boolean} useSegmentedBars - If true, creates a segmented bar chart with percent scaling (requires both attributes to be categorical)
+         * @returns {Promise<string|null>} Promise that resolves with the component ID if successful
+         */
+        createPairGraph: async function(attr1Name, attr1Type, attr2Name, attr2Type, position, useSegmentedBars = false) {
+            try {
+                multiVariateExtras.log(`Creating graph for ${attr1Name} (${attr1Type}) vs ${attr2Name} (${attr2Type}) at position (${position.x}, ${position.y}) with useSegmentedBars=${useSegmentedBars}`);
+
+                let xAxis, yAxis, legendAttr, plotType, breakdownType, thisGraphSegmentedBars;
+                // Our usual behavior: plot the two variables against each other, x versus y.
+                // We'll write over some of these later if we need to, when doing a Segmented Bar Chart.
+                xAxis = attr1Name;
+                yAxis = attr2Name;
+                legendAttr = null;
+                plotType = undefined;
+                breakdownType = undefined;
+                thisGraphSegmentedBars = false; // default; we might set it to true inside the nested if.
+                // 
+                if (useSegmentedBars && attr2Name) { // only do this if attr2Name is not null; if it's null, we're doing a univariate graph and can't segment bars
+                    // Check if both attributes are essentially categorical
+                    const attr1Category = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr1Type);
+                    const attr2Category = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr2Type);
+                    
+                    if (attr1Category === "EssentiallyCategorical" && attr2Category === "EssentiallyCategorical") {
+                        thisGraphSegmentedBars = true; // later we'll use this to know whether to modify the graph.
+                        // Create segmented bar chart with percent scaling
+                        xAxis = attr1Name;
+                        yAxis = null; // No attribute on the y-axis for segmented bars, since we need the y-axis for 0%-100% scale.
+                        legendAttr = attr2Name; // Use attr2 as "legend", which sets colors of cases/segments of bars.
+                        // in v2 this could be: DG.BarChart DG.BarChartView
+                        // in v3 this could be: barChart BarChartModel BarChart [note exact capitalization]
+                        plotType = "DG.BarChart";  // or just "barChart"                        ?
+                        breakdownType = 1; // Percent scaling; or maybe need to say "percent" as a string?
+                        debugger;
+                        multiVariateExtras.log(`Creating0 segmented bar chart with x=${xAxis}, legend=${legendAttr}, plotType=${plotType}, breakdownType=${breakdownType}`);
+                    } 
+                }
+
+                // Create the graph
+                const result = await connect.createGraph(
+                    multiVariateExtras.datasetInfo.name,
+                    xAxis,
+                    yAxis,
+                    legendAttr,
+                    position,
+                    { width: position.width, height: position.height },
+                    plotType,
+                    breakdownType
+                );
+
+                if (result.success) {
+                    const componentId = result.values.id;
+                    multiVariateExtras.log(`Created pair graph, id= ${componentId}`);
+                    multiVariateExtras.log(`thisGraphSegmentedBars= ${thisGraphSegmentedBars}`);
+
+                    if (thisGraphSegmentedBars) {
+                        multiVariateExtras.log(`Attempting to modify chart, id= ${componentId}`);
+                        
+                        // Use the new modifyGraph function to set plotType and breakdownType
+                        const modificationResult = await connect.modifyGraph(componentId, {
+                            plotType: plotType,
+                            breakdownType: breakdownType
+                        });
+                        
+                        if (modificationResult.success) {
+                            multiVariateExtras.log(`Successfully modified graph ${componentId} to use segmented bars`);
+                        } else {
+                            multiVariateExtras.warn(`Failed to modify graph ${componentId}: ${modificationResult.error || 'unknown error'}`);
+                        }
+                    }
+                    return componentId;
+                } else {
+                    multiVariateExtras.warn(`Failed to create graph for ${attr1Name} vs ${attr2Name}: ${result.values ? result.values.error : "unknown error"}`);
+                    return null;
+                }
+            } catch (error) {
+                multiVariateExtras.error(`Error creating pair graph for ${attr1Name} vs ${attr2Name}: ${error}`);
+                return null;
+            }
+        },
+
+    },
+
+    /**
+     * Gets a list of attributes and their actual types from the current dataset
+     * @returns {Array} Array of objects with name and type properties
+     */
+    getAttributesWithTypes: function() {
+        const attributes = [];
+        
+        if (!this.datasetInfo || !this.datasetInfo.collections) {
+            return attributes;
+        }
+        
+        for (const coll of this.datasetInfo.collections) {
+            for (const attr of coll.attrs) {
+                attributes.push({
+                    name: attr.name,
+                    type: attr.type || ""
+                });
+            }
+        }
+        
+        return attributes;
     },
 
     /**
@@ -625,10 +1241,19 @@ const multiVariateExtras = {
             }
 
             // Fisher's z-transformation: z_r = (1/2) * ln((1+r)/(1-r))
+            // I checked to make sure math.log uses LN not log10: "The Math.log() static method returns the natural logarithm (base e)""
             const z_r = 0.5 * Math.log((1 + r) / (1 - r));
             
             // Standard error of the transformed correlation
             const se_z = 1 / Math.sqrt(n - 3);
+            
+            // the file     codap/v3/src/components/graph/utilities/graph-utils.ts
+            // has:  const t_quantile_at_0975_for_df = 
+            // and export const tAt0975ForDf = (iDf: number) => {
+            //  const foundIndex = t_quantile_at_0975_for_df.findIndex((iPair: number[]) => iPair[0] > iDf)
+            //  return foundIndex <= 0 ? 1.96 : t_quantile_at_0975_for_df[foundIndex - 1][1]
+            //}
+            // so we can use that to get the t-value for the margin of error, once we have time for that
             
             // Margin of error
             const me = z * se_z;
@@ -786,8 +1411,11 @@ const multiVariateExtras = {
         kGroupAttributeByLevelMode : "byLevel",
         defaultTagName : "Tag",
     },
+
+
+
     log: function (msg) {
-        // console.log(msg);
+        console.log(msg);
     },
     warn: function (msg) {
         console.warn(msg);
@@ -796,3 +1424,9 @@ const multiVariateExtras = {
         console.error(msg);
     }
 }
+
+// Add utility functions to window object for easy access from browser console
+window.testPositionCalculation = multiVariateExtras.calculateCorrelGraphLayout;
+
+// Also add a simple way to access the main object
+window.multiVariateExtras = multiVariateExtras;

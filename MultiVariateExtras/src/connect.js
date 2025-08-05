@@ -7,7 +7,7 @@
  ==========================================================================
 connect in multiVariateExtras
 
-Author:   Tim Erickson
+Author:   Tim Erickson, with some modifications by Andrew Ross (createGraph mostly)
 
 Copyright (c) 2018 by The Concord Consortium, Inc. All rights reserved.
 
@@ -637,25 +637,270 @@ const connect = {
     },
 
     /**
+     * Debug function to check the tile row type and help diagnose positioning issues
+     * @returns {Promise<Object>} Information about the current document structure
+     */
+    debugTileRowType: async function () {
+        console.log("c === Tile Row Type Debug ===");
+        
+        try {
+            // Get the current document structure
+            const documentMessage = {
+                action: "get",
+                resource: "document"
+            };
+            
+            const documentResult = await codapInterface.sendRequest(documentMessage);
+            console.log("c Document result:", documentResult);
+            multiVariateExtras.log("m Document result:", documentResult);
+            
+            if (documentResult.success) {
+                const document = documentResult.values;
+                console.log("c Document structure:", document);
+                multiVariateExtras.log("m Document structure:", document);
+                
+                // Check if there are any rows
+                if (document.rows && document.rows.length > 0) {
+                    console.log("c Number of rows:", document.rows.length);
+                    multiVariateExtras.log("m Number of rows:", document.rows.length);
+                    
+                    document.rows.forEach((row, index) => {
+                        console.log(`c Row ${index}:`, row);
+                        multiVariateExtras.log(`m Row ${index}:`, row);
+                        
+                        // Check row type
+                        if (row.type) {
+                            console.log(`c Row ${index} type:`, row.type);
+                            multiVariateExtras.log(`m Row ${index} type:`, row.type);
+                            
+                            if (row.type === "free") {
+                                console.log(`c Row ${index} is a FREE tile row - positioning should work!`);
+                                multiVariateExtras.log(`m Row ${index} is a FREE tile row - positioning should work!`);
+                            } else {
+                                console.log(`c Row ${index} is NOT a free tile row (type: ${row.type}) - positioning may not work!`);
+                                multiVariateExtras.log(`m Row ${index} is NOT a free tile row (type: ${row.type}) - positioning may not work!`);
+                            }
+                        } else {
+                            console.log(`c Row ${index} has no type property`);
+                            multiVariateExtras.log(`m Row ${index} has no type property`);
+                        }
+                        
+                        // Check if row has tiles
+                        if (row.tiles) {
+                            console.log(`c Row ${index} has ${Object.keys(row.tiles).length} tiles`);
+                            multiVariateExtras.log(`m Row ${index} has ${Object.keys(row.tiles).length} tiles`);
+                        }
+                    });
+                } else {
+                    console.log("c No rows found in document");
+                    multiVariateExtras.log("m No rows found in document");
+                }
+                
+                // Check content structure
+                if (document.content) {
+                    console.log("c Document has content property");
+                    multiVariateExtras.log("m Document has content property");
+                    
+                    if (document.content.rows && document.content.rows.length > 0) {
+                        console.log("c Content has rows:", document.content.rows.length);
+                        multiVariateExtras.log("m Content has rows:", document.content.rows.length);
+                        
+                        document.content.rows.forEach((row, index) => {
+                            console.log(`c Content row ${index}:`, row);
+                            multiVariateExtras.log(`m Content row ${index}:`, row);
+                        });
+                    }
+                }
+            } else {
+                console.log("c Failed to get document structure");
+                multiVariateExtras.log("m Failed to get document structure");
+            }
+            
+            // Also try to get the first row specifically
+            const firstRowMessage = {
+                action: "get",
+                resource: "document.content.row[0]"
+            };
+            
+            const firstRowResult = await codapInterface.sendRequest(firstRowMessage);
+            console.log("c First row result:", firstRowResult);
+            multiVariateExtras.log("m First row result:", firstRowResult);
+            
+            return {
+                success: true,
+                document: documentResult.success ? documentResult.values : null,
+                firstRow: firstRowResult.success ? firstRowResult.values : null
+            };
+            
+        } catch (error) {
+            console.error("c Error in debugTileRowType:", error);
+            multiVariateExtras.error(`m Error in debugTileRowType: ${error}`);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    },
+
+    /**
+     * Ensures that the document has a free tile row for proper positioning
+     * @returns {Promise<Object>} Result of the operation
+     */
+    ensureFreeTileRow: async function () {
+        console.log("c === Ensuring Free Tile Row ===");
+        multiVariateExtras.log("m === Ensuring Free Tile Row ===");
+        
+        try {
+            // First, check the current document structure
+            const debugResult = await this.debugTileRowType();
+            
+            if (!debugResult.success) {
+                console.log("c Failed to get document structure");
+                multiVariateExtras.log("m Failed to get document structure");
+                return { success: false, error: "Failed to get document structure" };
+            }
+            
+            // Check if we already have a free tile row
+            let hasFreeTileRow = false;
+            if (debugResult.document && debugResult.document.rows) {
+                hasFreeTileRow = debugResult.document.rows.some(row => row.type === "free");
+            }
+            
+            if (hasFreeTileRow) {
+                console.log("c Document already has a free tile row - positioning should work!");
+                multiVariateExtras.log("m Document already has a free tile row - positioning should work!");
+                return { success: true, message: "Free tile row already exists" };
+            }
+            
+            console.log("c No free tile row found - attempting to create one");
+            multiVariateExtras.log("m No free tile row found - attempting to create one");
+            
+            // Try to create a free tile row
+            // Note: This might not be possible through the plugin API
+            // The user might need to manually create a new document or reset the layout
+            
+            console.log("c Warning: Creating a free tile row may not be possible through the plugin API");
+            multiVariateExtras.log("m Warning: Creating a free tile row may not be possible through the plugin API");
+            console.log("c You may need to:");
+            multiVariateExtras.log("m You may need to:");
+            console.log("c 1. Create a new CODAP document");
+            multiVariateExtras.log("m 1. Create a new CODAP document");
+            console.log("c 2. Or reset the current document layout");
+            multiVariateExtras.log("m 2. Or reset the current document layout");
+            console.log("c 3. Or manually add a component to create the free tile row");
+            multiVariateExtras.log("m 3. Or manually add a component to create the free tile row");
+            
+            return { 
+                success: false, 
+                error: "No free tile row found",
+                suggestion: "Create a new CODAP document or add a component manually to create the free tile row"
+            };
+            
+        } catch (error) {
+            console.error("c Error in ensureFreeTileRow:", error);
+            multiVariateExtras.error(`m Error in ensureFreeTileRow: ${error}`);
+            return { success: false, error: error.message };
+        }
+    },
+
+    /**
      * Creates a simple scatter-plot graph component in CODAP
      * @param {string} dataContext - The name of the dataset
      * @param {string} xAxis - The name of the x-axis attribute
      * @param {string} yAxis - The name of the y-axis attribute
      * @param {string} legendAttr - Optional name of the legend attribute
+     * @param {Object} position - Optional position object with x, y coordinates
+     * @param {Object} dimensions - Optional dimensions object with width, height
      * @returns {Promise} - Promise that resolves with the result of the graph creation
      */
-    createGraph: async function (dataContext, xAxis, yAxis, legendAttr = null) {
+    createGraph: async function (dataContext, xAxis, yAxis, legendAttr = null, position = null, dimensions = null, plotType = null, breakdownType = null) {
+        
+        console.log("c === createGraph Debug ===");
+        
+        // Use the selected CODAP version from radio buttons
+        const isV3 = multiVariateExtras.codapVersion === "v3";
+        console.log(`cCODAP version from radio buttons: ${multiVariateExtras.codapVersion}`);
+
+   
+        // Check tile row type for debugging positioning issues
+        if (multiVariateExtras.codapVersion === "v3") {
+            console.log("c Checking tile row type for v3...");
+            await this.debugTileRowType();
+        }
+        
+        console.log("c Position parameter:", position);
+        console.log("c Dimensions parameter:", dimensions);
+        console.log("c dataContext:", dataContext);
+        console.log("c xAxis:", xAxis);
+        console.log("c yAxis:", yAxis);
+        console.log("c legendAttr:", legendAttr); 
+     
         const graphObject = {
             type: "graph",
             dataContext: dataContext,
             xAttributeName: xAxis,
-            yAttributeName: yAxis,
         };
+
+        // Only add yAttributeName if it's not null
+        if (yAxis !== null && yAxis !== undefined) {
+            graphObject.yAttributeName = yAxis;
+        }
 
         // Add legend attribute if specified
         if (legendAttr) {
             graphObject.legendAttributeName = legendAttr;
         }
+
+
+
+
+        // We could be careful about what info (position, dimension) we add to the object
+        // based CODAP version (v2 or v3),
+        // but there's no harm adding extra things to the object; CODAP will ignore them.
+        // So we'll add everything we can that v2 or v3 might need, and let CODAP figure out what to do with it.
+        // The penalty in execution time and memory is miniscule.
+        
+        // And, that way it might still work even if we're wrong about v2 versus v3,
+        // or if some future version of CODAP changes the API.
+   
+        if (position) {
+            graphObject.position = { left: position.x, top: position.y, x: position.x, y: position.y};
+            graphObject.options = { left: position.x, top: position.y, x: position.x, y: position.y };
+            graphObject.layout = { left: position.x, top: position.y, x: position.x, y: position.y };
+            graphObject.x = position.x;
+            graphObject.y = position.y;
+            graphObject.left = position.x;
+            graphObject.top = position.y;
+        }
+            
+        if (dimensions) {
+            graphObject.dimensions = dimensions;
+            graphObject.layout.width = dimensions.width;
+            graphObject.layout.height = dimensions.height;
+            
+            graphObject.options.width = dimensions.width;
+            graphObject.options.height = dimensions.height;
+    
+            graphObject.width = dimensions.width;
+            graphObject.height = dimensions.height;
+        } else {
+            console.log("c No dimensions provided");
+        }
+
+        // Add plotType and breakdownType if provided
+        if (plotType) {
+            graphObject.plotType = plotType; // CODAP v2 term is "plotType"
+            graphObject.plotClass = plotType; // CODAP v3 term is "plotClass"
+            // doesn't hurt to have both; CODAP will ignore the one it doesn't recognize.
+        }
+        
+        if (breakdownType) {
+            // not sure if CODAP wants a string like "count", "percent", "formula" or a number like 0, 1, 2.
+            graphObject.breakdownType = breakdownType; 
+        }
+
+        
+        console.log("Final graphObject:", graphObject);
 
         const theMessage = {
             action: "create",
@@ -663,12 +908,71 @@ const connect = {
             values: graphObject,
         };
 
+        console.log("c Sending message to CODAP:", theMessage);
+        
         try {
             const result = await codapInterface.sendRequest(theMessage);
+            console.log("c CODAP response:", result);
             return result;
         } catch (error) {
-            console.error(`Error creating graph: ${error}`);
+            console.error(`c Error creating graph: ${error}`);
             throw error;
+        }
+    },
+
+    /**
+     * Modifies an existing graph's properties like plotType and breakdownType
+     * 
+     * @param {string} componentId - The ID of the graph component to modify
+     * @param {Object} modifications - Object containing properties to modify
+     * @param {string} [modifications.plotType] - The plot type (e.g., "barChartModel", "barChart")
+     * @param {number} [modifications.breakdownType] - The breakdown type (e.g., 1 for percent scaling)
+     * @returns {Promise<Object>} Result of the modification operation
+     */
+    modifyGraph: async function(componentId, modifications) {
+        console.log("c === modifyGraph Debug ===");
+        console.log("c Component ID:", componentId);
+        console.log("c Modifications:", modifications);
+        
+        if (!componentId) {
+            console.error("c No component ID provided for graph modification");
+            return { success: false, error: "No component ID provided" };
+        }
+        
+        if (!modifications || Object.keys(modifications).length === 0) {
+            console.error("c No modifications provided");
+            return { success: false, error: "No modifications provided" };
+        }
+        
+        // Build the update values object
+        const updateValues = {};
+        
+        if (modifications.plotType) {
+            updateValues.plotType = modifications.plotType; // CODAP v2 term
+            updateValues.plotClass = modifications.plotType; // CODAP v3 term
+        }
+        
+        if (modifications.breakdownType !== undefined) {
+            updateValues.breakdownType = modifications.breakdownType;
+        }
+        
+        console.log("c Update values:", updateValues);
+        
+        const theMessage = {
+            action: "update",
+            resource: `component[${componentId}]`,
+            values: updateValues
+        };
+        
+        console.log("c Sending modification message to CODAP:", theMessage);
+        
+        try {
+            const result = await codapInterface.sendRequest(theMessage);
+            console.log("c CODAP modification response:", result);
+            return result;
+        } catch (error) {
+            console.error(`c Error modifying graph: ${error}`);
+            return { success: false, error: error.toString() };
         }
     },
 
@@ -717,7 +1021,7 @@ const connect = {
 
 
     iFrameDescriptor: {
-        version: multiVariateExtras.constants.version,
+        version: (typeof multiVariateExtras !== 'undefined' && multiVariateExtras.constants) ? multiVariateExtras.constants.version : '2025a',
         name: 'multiVariateExtras',
         title: 'multiVariateExtras',
         dimensions: {
