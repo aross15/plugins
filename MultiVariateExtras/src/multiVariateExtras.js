@@ -967,9 +967,10 @@ const multiVariateExtras = {
 
                 // Create graphs for each pair of attributes
                 const createdGraphs = [];
-                for (let i = 0; i < numAttributes; i++) {
-                    for (let j = 0; j < numAttributes; j++) {
-                        const position = layout[i][j];
+                for (let i = 0; i < numAttributes; i++) { // Predictor
+                    for (let j = 0; j < numAttributes; j++) { // Response
+                        const position = layout[j][i]; // j,i instead of i,j because
+                        // Response stays the same across a row, but Predictor changes.
 
                         const attr1 = attributes[i];
                         const attr2 = attributes[j];
@@ -1049,7 +1050,6 @@ const multiVariateExtras = {
                         // in v3 this could be: barChart BarChartModel BarChart [note exact capitalization]
                         plotType = "DG.BarChart";  // or just "barChart"                        ?
                         breakdownType = 1; // Percent scaling; or maybe need to say "percent" as a string?
-                        debugger;
                         multiVariateExtras.log(`Creating0 segmented bar chart with x=${xAxis}, legend=${legendAttr}, plotType=${plotType}, breakdownType=${breakdownType}`);
                     } 
                 }
