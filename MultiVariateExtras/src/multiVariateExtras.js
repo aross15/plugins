@@ -40,6 +40,7 @@ const multiVariateExtras = {
     tagsAttributeName: "Tag",
     attributeGroupingMode : null,
     codapVersion: "v2",    //  stores the selected CODAP version (v2 or v3)
+    createdGraphsMap: new Map(), //  stores created graphs by dataset name
 
     initialize: async function () {
         this.attributeGroupingMode = this.constants.kGroupAttributeByBatchMode;
@@ -1003,11 +1004,62 @@ const multiVariateExtras = {
                 }
 
                 multiVariateExtras.log(`Created ${createdGraphs.length} graphs in plot matrix`);
+                
+                // Store the created graphs in the Map using dataset name as key
+                if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.name) {
+                    multiVariateExtras.createdGraphsMap.set(multiVariateExtras.datasetInfo.name, createdGraphs);
+                    multiVariateExtras.log(`Stored ${createdGraphs.length} graphs for dataset: ${multiVariateExtras.datasetInfo.name}`);
+                }
+                
                 return createdGraphs;
             } catch (error) {
                 console.log("Error creating plot matrix: ", error);
                 multiVariateExtras.log("Error creating plot matrix: ", error);
                 return null;
+            }
+        },
+
+        /**
+         * Deletes all plot matrix graphs for the current dataset
+         * @returns {Promise<void>}
+         */
+        deletePlotMatrix: async function () {
+            if (!multiVariateExtras.datasetInfo || !multiVariateExtras.datasetInfo.name) {
+                multiVariateExtras.warn("No dataset selected for plot matrix deletion");
+                return;
+            }
+
+            const datasetName = multiVariateExtras.datasetInfo.name;
+            const graphs = multiVariateExtras.utilities.getCreatedGraphs(datasetName);
+            
+            if (!graphs || graphs.length === 0) {
+                multiVariateExtras.log(`No plot matrix graphs found for dataset: ${datasetName}`);
+                return;
+            }
+
+            multiVariateExtras.log(`Deleting ${graphs.length} plot matrix graphs for dataset: ${datasetName}`);
+
+            try {
+                for (const graphId of graphs) {
+                    const message = {
+                        action: "delete",
+                        resource: `component[${graphId}]`
+                    };
+                    
+                    const result = await codapInterface.sendRequest(message);
+                    if (result.success) {
+                        multiVariateExtras.log(`Successfully deleted graph ${graphId}`);
+                    } else {
+                        multiVariateExtras.warn(`Failed to delete graph ${graphId}: ${result.error || 'unknown error'}`);
+                    }
+                }
+                
+                // Clear the stored graphs after successful deletion
+                multiVariateExtras.createdGraphsMap.delete(datasetName);
+                multiVariateExtras.log(`Cleared stored graphs for dataset: ${datasetName}`);
+                
+            } catch (error) {
+                multiVariateExtras.error(`Error deleting plot matrix graphs: ${error}`);
             }
         },
 
@@ -1393,6 +1445,40 @@ const multiVariateExtras = {
             } else {
                 return {theNumber: 0, theString: ""};
             }
+        },
+
+        /**
+         * Gets the created graphs for a specific dataset
+         * @param {string} datasetName - The name of the dataset
+         * @returns {Array|null} Array of graph IDs if found, null otherwise
+         */
+        getCreatedGraphs: function(datasetName) {
+            if (!datasetName) {
+                multiVariateExtras.warn("No dataset name provided to getCreatedGraphs");
+                return null;
+            }
+            
+            const graphs = multiVariateExtras.createdGraphsMap.get(datasetName);
+            if (graphs) {
+                multiVariateExtras.log(`Retrieved ${graphs.length} graphs for dataset: ${datasetName}`);
+                return graphs;
+            } else {
+                multiVariateExtras.log(`No graphs found for dataset: ${datasetName}`);
+                return null;
+            }
+        },
+
+        /**
+         * Gets the created graphs for the current dataset
+         * @returns {Array|null} Array of graph IDs if found, null otherwise
+         */
+        getCurrentDatasetGraphs: function() {
+            if (!multiVariateExtras.datasetInfo || !multiVariateExtras.datasetInfo.name) {
+                multiVariateExtras.warn("No current dataset info available");
+                return null;
+            }
+            
+            return multiVariateExtras.utilities.getCreatedGraphs(multiVariateExtras.datasetInfo.name);
         },
     },
 
