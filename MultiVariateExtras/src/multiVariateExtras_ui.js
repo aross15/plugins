@@ -70,6 +70,7 @@ const multiVariateExtras_ui = {
             this.setBatchNameDefault();
             this.recordCurrentOpenDetailStates();
             this.attributeControls.install();
+            this.plotMatrixAttributeControls.install();  // Install plot matrix attribute controls
             this.doTagVisibility();
             await this.makeSummary();
             this.updateCorrelationDatasetName();  // Update correlation tab dataset name
@@ -658,6 +659,83 @@ const multiVariateExtras_ui = {
             option.textContent = attr.name;
             dropdown.appendChild(option);
         });
+    },
+
+    /**
+     * Plot matrix attribute controls section
+     */
+    plotMatrixAttributeControls: {
+        tbodyID: "plot-matrix-attribute-tbody",
+
+        /**
+         * Create HTML for the plot matrix attribute controls table
+         * @returns {string} the HTML for the table body
+         */
+        make: function () {
+            let tGuts = "";
+
+            // Get attributes using the centralized function
+            const attributes = multiVariateExtras.getAttributesWithTypes();
+            
+            if (attributes.length === 0) {
+                tGuts = `<tr><td colspan="3" style="text-align: center; padding: 8px; color: #666;">No attributes available</td></tr>`;
+            } else {
+                attributes.forEach(attr => {
+                    tGuts += this.makeOneAttributeRow(attr);
+                });
+            }
+
+            return tGuts;
+        },
+
+        /**
+         * Create HTML for one attribute row in the plot matrix table
+         * @param {Object} attr - Attribute object with name and type properties
+         * @returns {string} HTML for one table row
+         */
+        makeOneAttributeRow: function (attr) {
+            // Check if this attribute is hidden in the plot matrix context
+            const isHidden = multiVariateExtras.plotMatrixHiddenAttributes && 
+                           multiVariateExtras.plotMatrixHiddenAttributes.has(attr.name);
+            
+            const visibilityIconPath = isHidden
+                ? "../common/art/slide-off-simplest.png"
+                : "../common/art/slide-on-simplest.png";
+
+            const theHint = isHidden ?
+                `click to include ${attr.name} in plot matrix` :
+                `click to exclude ${attr.name} from plot matrix`;
+
+            return `<tr>
+                <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">
+                    <div draggable="false">
+                        <img class="slide-switch" draggable="false"
+                            src="${visibilityIconPath}" 
+                            title="${theHint}" 
+                            onclick="multiVariateExtras.handlers.plotMatrixAttributeVisibilityButton('${attr.name}', ${isHidden})" 
+                            alt="plot matrix visibility switch"  
+                            style="cursor: pointer;"
+                        />
+                    </div>
+                </td>
+                <td style="text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; color: #666;">
+                    ${attr.type || "[unknown]"}
+                </td>
+                <td style="text-align: left; padding: 8px; border-bottom: 1px solid #eee;">
+                    ${attr.name}
+                </td>
+            </tr>`;
+        },
+
+        /**
+         * Install the plot matrix attribute controls
+         */
+        install: function () {
+            const tbody = document.getElementById(this.tbodyID);
+            if (tbody) {
+                tbody.innerHTML = this.make();
+            }
+        }
     },
 
 

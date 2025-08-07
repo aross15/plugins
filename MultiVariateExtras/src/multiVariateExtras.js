@@ -41,6 +41,7 @@ const multiVariateExtras = {
     attributeGroupingMode : null,
     codapVersion: "v2",    //  stores the selected CODAP version (v2 or v3)
     createdGraphsMap: new Map(), //  stores created graphs by dataset name
+    plotMatrixHiddenAttributes: new Set(), //  stores attributes hidden in plot matrix context
 
     initialize: async function () {
         this.attributeGroupingMode = this.constants.kGroupAttributeByBatchMode;
@@ -949,10 +950,15 @@ const multiVariateExtras = {
             }
 
             try {
-                const attributes = multiVariateExtras.getAttributesWithTypes();
+                let attributes = multiVariateExtras.getAttributesWithTypes();
+                
+                // Filter out hidden attributes for plot matrix
+                attributes = attributes.filter(attr => 
+                    !multiVariateExtras.plotMatrixHiddenAttributes.has(attr.name)
+                );
                 
                 if (attributes.length === 0) {
-                    multiVariateExtras.warn("No attributes found in the dataset");
+                    multiVariateExtras.warn("No attributes available for plot matrix (all attributes are hidden)");
                     return null;
                 }
 
@@ -1023,6 +1029,29 @@ const multiVariateExtras = {
                 multiVariateExtras.log("Error creating plot matrix: ", error);
                 return null;
             }
+        },
+
+        /**
+         * Handles user press of a visibility button for a single attribute in the plot matrix tab
+         *
+         * @param iAttName - The name of the attribute
+         * @param iHidden - Whether the attribute is currently hidden
+         * @returns {Promise<void>}
+         */
+        plotMatrixAttributeVisibilityButton: async function (iAttName, iHidden) {
+            // Toggle the hidden state in the plot matrix context
+            if (iHidden) {
+                // Currently hidden, so make it visible
+                multiVariateExtras.plotMatrixHiddenAttributes.delete(iAttName);
+                multiVariateExtras.log(`Plot matrix attribute ${iAttName} is now visible`);
+            } else {
+                // Currently visible, so hide it
+                multiVariateExtras.plotMatrixHiddenAttributes.add(iAttName);
+                multiVariateExtras.log(`Plot matrix attribute ${iAttName} is now hidden`);
+            }
+            
+            // Update the UI to reflect the change
+            multiVariateExtras_ui.plotMatrixAttributeControls.install();
         },
 
         /**
