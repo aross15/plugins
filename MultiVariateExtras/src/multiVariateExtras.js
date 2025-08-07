@@ -960,7 +960,11 @@ const multiVariateExtras = {
                 const useSegmentedBarsCheckbox = document.getElementById('use-segmented-bars-checkbox');
                 const useSegmentedBars = useSegmentedBarsCheckbox ? useSegmentedBarsCheckbox.checked : true; // Default to true if checkbox not found
 
-                multiVariateExtras.log(`Creating plot matrix with ${attributes.length} attributes: ${attributes.map(a => a.name).join(', ')} with useSegmentedBars=${useSegmentedBars}`);
+                // Get the selected legend attribute
+                const legendAttributeDropdown = document.getElementById('legend-attribute-dropdown');
+                const selectedLegendAttribute = legendAttributeDropdown ? legendAttributeDropdown.value : null;
+
+                multiVariateExtras.log(`Creating plot matrix with ${attributes.length} attributes: ${attributes.map(a => a.name).join(', ')} with useSegmentedBars=${useSegmentedBars}, legendAttribute=${selectedLegendAttribute}`);
 
                 // Calculate layout for the plot matrix
                 const numAttributes = attributes.length;
@@ -985,6 +989,7 @@ const multiVariateExtras = {
                             graphId = await multiVariateExtras.handlers.createPairGraph(
                                 attr1.name, attr1.type,
                                 null, null,
+                                selectedLegendAttribute,
                                 position,
                                 useSegmentedBars
                             );
@@ -992,6 +997,7 @@ const multiVariateExtras = {
                             graphId = await multiVariateExtras.handlers.createPairGraph(
                                 attr1.name, attr1.type,
                                 attr2.name, attr2.type,
+                                selectedLegendAttribute,
                                 position,
                                 useSegmentedBars
                             );
@@ -1069,20 +1075,21 @@ const multiVariateExtras = {
          * @param {string} attr1Type - Type of the first attribute
          * @param {string} attr2Name - Name of the second attribute
          * @param {string} attr2Type - Type of the second attribute
+         * @param {string|null} legendAttribute - Name of the attribute to use as legend (or null for no legend)
          * @param {Object} position - Position object with x, y, width, height properties
          * @param {boolean} useSegmentedBars - If true, creates a segmented bar chart with percent scaling (requires both attributes to be categorical)
          * @returns {Promise<string|null>} Promise that resolves with the component ID if successful
          */
-        createPairGraph: async function(attr1Name, attr1Type, attr2Name, attr2Type, position, useSegmentedBars = false) {
+        createPairGraph: async function(attr1Name, attr1Type, attr2Name, attr2Type, legendAttribute, position, useSegmentedBars = false) {
             try {
-                multiVariateExtras.log(`Creating graph for ${attr1Name} (${attr1Type}) vs ${attr2Name} (${attr2Type}) at position (${position.x}, ${position.y}) with useSegmentedBars=${useSegmentedBars}`);
+                multiVariateExtras.log(`Creating graph for ${attr1Name} (${attr1Type}) vs ${attr2Name} (${attr2Type}) at position (${position.x}, ${position.y}) with useSegmentedBars=${useSegmentedBars}, legendAttribute=${legendAttribute}`);
 
                 let xAxis, yAxis, legendAttr, plotType, breakdownType, thisGraphSegmentedBars;
                 // Our usual behavior: plot the two variables against each other, x versus y.
                 // We'll write over some of these later if we need to, when doing a Segmented Bar Chart.
                 xAxis = attr1Name;
                 yAxis = attr2Name;
-                legendAttr = null;
+                legendAttr = legendAttribute; // Use the selected legend attribute
                 plotType = undefined;
                 breakdownType = undefined;
                 thisGraphSegmentedBars = false; // default; we might set it to true inside the nested if.
@@ -1098,6 +1105,7 @@ const multiVariateExtras = {
                         xAxis = attr1Name;
                         yAxis = null; // No attribute on the y-axis for segmented bars, since we need the y-axis for 0%-100% scale.
                         legendAttr = attr2Name; // Use attr2 as "legend", which sets colors of cases/segments of bars.
+                        // Note: We don't use the selected legend attribute for segmented bar charts
                         // in v2 this could be: DG.BarChart DG.BarChartView
                         // in v3 this could be: barChart BarChartModel BarChart [note exact capitalization]
                         plotType = "DG.BarChart";  // or just "barChart"                        ?

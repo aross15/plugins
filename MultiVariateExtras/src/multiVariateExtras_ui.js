@@ -629,6 +629,36 @@ const multiVariateExtras_ui = {
                 plotMatrixDatasetElement.textContent = "No dataset selected";
             }
         }
+        
+        // Update the legend attribute dropdown
+        this.updateLegendAttributeDropdown();
+    },
+
+    /**
+     * Populate the legend attribute dropdown with available attributes
+     */
+    updateLegendAttributeDropdown: function () {
+        const dropdown = document.getElementById("legend-attribute-dropdown");
+        if (!dropdown) {
+            return;
+        }
+
+        // Clear existing options except the first one
+        while (dropdown.children.length > 1) {
+            dropdown.removeChild(dropdown.lastChild);
+        }
+
+        // Add attribute options if we have dataset info
+        if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.collections) {
+            for (const coll of multiVariateExtras.datasetInfo.collections) {
+                for (const attr of coll.attrs) {
+                    const option = document.createElement("option");
+                    option.value = attr.name;
+                    option.textContent = attr.name;
+                    dropdown.appendChild(option);
+                }
+            }
+        }
     },
 
 
