@@ -60,7 +60,6 @@ const multiVariateExtras_ui = {
 
         if (multiVariateExtras.datasetInfo) {
             this.plotMatrixAttributeControls.install();  // Install plot matrix attribute controls
-            this.doTagVisibility();
             await this.makeSummary();
             this.updateCorrelationDatasetName();  // Update correlation tab dataset name
             this.updatePlotMatrixDatasetName();   // Update plot matrix tab dataset name
@@ -70,25 +69,11 @@ const multiVariateExtras_ui = {
     },
 
 
-
-    /**
-     * Set visibility for different parts of the **Tag** interface,
-     * e.g., show only "binary" controls in binary mode.
-     */
-    doTagVisibility: function () {
-        const tagModeString = document.querySelector("input[name='tag-mode']:checked").value;
-
-        document.getElementById("simple-tag").style.display = (tagModeString === "simple") ? "block" : "none";
-        document.getElementById("binary-tag").style.display = (tagModeString === "binary") ? "block" : "none";
-        document.getElementById("random-tag").style.display = (tagModeString === "random") ? "block" : "none";
-    },
-
     /**
      * Construct and install summaries about how many cases, attributes, and selected cases there are.
      * @returns {Promise<void>}
      */
     makeSummary: async function () {
-        const summaryEl = document.getElementById(multiVariateExtras.constants.selectionStatusElementID);
         const datasetSummaryEL = document.getElementById(multiVariateExtras.constants.datasetSummaryEL);
         const selectedCases = await connect.tagging.getCODAPSelectedCaseIDs();
 
@@ -110,9 +95,9 @@ const multiVariateExtras_ui = {
         theText += `${nAttributes} attributes, ${nCases} cases. ${selectedCases.length} selected.`;
 
         //  install this summary text in the DOM
-
-        summaryEl.innerHTML = theText;
-        datasetSummaryEL.innerHTML = theText;
+        if (datasetSummaryEL) {
+            datasetSummaryEL.innerHTML = theText;
+        }
     },
 
 

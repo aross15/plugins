@@ -37,7 +37,6 @@ const multiVariateExtras = {
     theData: {},           //  case-ID-keyed object containing objects with non-formula values for all cases
     selectedCaseIDs: [],   //  the case IDs of the selected cases
 
-    tagsAttributeName: "Tag",
     codapVersion: "v2",    //  stores the selected CODAP version (v2 or v3)
     createdGraphsMap: new Map(), //  stores created graphs by dataset name
     plotMatrixHiddenAttributes: new Set(), //  stores attributes hidden in plot matrix context
@@ -56,7 +55,6 @@ const multiVariateExtras = {
         */
 
         await notify.setUpDocumentNotifications();
-        document.getElementById("tag-attribute-name-text").value = multiVariateExtras.tagsAttributeName;
         multiVariateExtras_ui.update();
         if (this.datasetList && this.datasetList.length === 1) {
             $('#tabs').tabs({active: 1})
@@ -492,45 +490,13 @@ const multiVariateExtras = {
 
 
 
-    getTagAttributeName : function() {
-        let tagAttributeName = document.getElementById("tag-attribute-name-text").value;
 
-        if (!tagAttributeName) {
-            tagAttributeName = multiVariateExtras.constants.defaultTagName;
-            document.getElementById("tag-attribute-name-text").value = tagAttributeName;
-        }
-
-        return tagAttributeName;
-    },
 
     handlers: {
 
         changeSearchText: async function () {
 
         },
-
-        changeTagMode: function () {
-            multiVariateExtras_ui.update();
-        },
-
-        applyTagToSelection: async function (iMode) {
-            await connect.tagging.doSimpleTag(iMode);
-        },
-
-        applyBinaryTags: async function () {
-            await connect.tagging.doBinaryTag();
-        },
-
-        applyRandomTags: async function () {
-            await connect.tagging.doRandomTag();
-        },
-
-        clearAllTags: async function () {
-            const theTagName = multiVariateExtras.getTagAttributeName();
-            await connect.tagging.clearAllTagsFrom(theTagName);
-        },
-
-
 
         //  todo: decide if we really need this
         handleSelectionChangeFromCODAP: async function () {
@@ -1326,35 +1292,6 @@ const multiVariateExtras = {
     },
 
     utilities: {
-        stringFractionDecimalOrPercentToNumber: function (iString) {
-            let out = {theNumber: 0, theString: '0'};
-            let theNumber = 0;
-            let theString = "";
-
-            const wherePercent = iString.indexOf("%");
-            const whereSlash = iString.indexOf("/");
-            if (wherePercent !== -1) {
-                const thePercentage = parseFloat(iString.substring(0, wherePercent));
-                theString = `${thePercentage}%`;
-                theNumber = thePercentage / 100.0;
-            } else if (whereSlash !== -1) {
-                const beforeSlash = iString.substring(0, whereSlash);
-                const afterSlash = iString.substring(whereSlash + 1);
-                const theNumerator = parseFloat(beforeSlash);
-                const theDenominator = parseFloat(afterSlash);
-                theNumber = theNumerator / theDenominator;
-                theString = `${theNumerator}/${theDenominator}`;
-            } else {
-                theNumber = parseFloat(iString);
-                theString = `${theNumber}`;
-            }
-
-            if (!isNaN(theNumber)) {
-                return {theNumber: theNumber, theString: theString};
-            } else {
-                return {theNumber: 0, theString: ""};
-            }
-        },
 
         /**
          * Gets the created graphs for a specific dataset
@@ -1394,14 +1331,6 @@ const multiVariateExtras = {
     constants: {
         version: '2025a',
         datasetSummaryEL: 'summaryInfo',
-        selectionStatusElementID: 'selection-status',
-        tagValueElementID: "tag-value-input",
-        tagValueSelectedElementID: "tag-value-selected",
-        tagValueNotSelectedElementID: "tag-value-not-selected",
-        tagValueGroupAElementID: "tag-value-group-A",
-        tagValueGroupBElementID: "tag-value-group-B",
-        tagPercentageElementID: "tag-percentage",
-        defaultTagName : "Tag",
     },
 
 
