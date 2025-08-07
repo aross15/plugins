@@ -38,13 +38,11 @@ const multiVariateExtras = {
     selectedCaseIDs: [],   //  the case IDs of the selected cases
 
     tagsAttributeName: "Tag",
-    attributeGroupingMode : null,
     codapVersion: "v2",    //  stores the selected CODAP version (v2 or v3)
     createdGraphsMap: new Map(), //  stores created graphs by dataset name
     plotMatrixHiddenAttributes: new Set(), //  stores attributes hidden in plot matrix context
 
     initialize: async function () {
-        this.attributeGroupingMode = this.constants.kGroupAttributeByBatchMode;
         await connect.initialize();
         await this.setUpDatasets();
 
@@ -419,17 +417,7 @@ const multiVariateExtras = {
         };
     },
 
-    makeInfoAlert(attrId) {
-        let attr = null;
-        this.datasetInfo && this.datasetInfo.collections.forEach(function (col) {
-            attr = attr || col.attrs.find(function (attr) {
-                return String(attr.id) === attrId;
-            });
-        });
-        if (attr) {
-            multiVariateExtras_ui.makeSweetAlert(attr.name, multiVariateExtras_ui.attributeControls.makeAttrDescriptor(attr));
-        }
-    },
+
 
     setUpDatasets: async function () {
         try {
@@ -502,72 +490,7 @@ const multiVariateExtras = {
         return null;
     },
 
-    addAttributeToBatch: async function (iAttName, iBatchName) {
-        await connect.setAttributeBatch(multiVariateExtras.datasetInfo.name, iAttName, iBatchName);
-        await multiVariateExtras_ui.update();
-    },
 
-    /**
-     * return the id for an attribute stripe, e.g., "att-Age"
-     * @param iName
-     * @returns {string}
-     */
-    attributeStripeID(iName) {
-        return `att-${iName}`;
-    },
-
-
-    /**
-     * Parse the attribute "batchs" indicated by bracketed batch names in the attribute descriptions.
-     *
-     * For example, `{work}Percent of people working in agriculture`
-     * puts the attribute in a batch called "work" and then strips that tag from the description.
-     *
-     * Does this by adding a `batch` key to the attribute data --- which does not exist in CODAP.
-     *
-     * @param theInfo   the information on all collections and attributes
-     */
-    processDatasetInfoForAttributeBatchs: function (theInfo) {
-
-        const whichWayToBatch = multiVariateExtras_ui.getBatchingStrategy();
-
-        for (let batch in multiVariateExtras_ui.batchRecord) {
-            let theRecord = multiVariateExtras_ui.batchRecord[batch];
-            theRecord["attrs"] = [];
-        }
-
-        if (!theInfo.collections) {
-            theInfo.collections = [];
-        }
-        theInfo.collections.forEach(coll => {
-            coll.attrs.forEach(att => {
-                let theDescription = att.description || '';
-                let theBatch = multiVariateExtras.constants.noBatchString;
-                const leftB = theDescription.indexOf("{");
-                const rightB = theDescription.indexOf("}");
-                if (rightB > leftB) {
-                    theBatch = theDescription.substring(leftB + 1, rightB);
-                    att["description"] = theDescription.substring(rightB + 1);  //  strip the bracketed batch name from the description
-                }
-
-                //  if we're batching "byLevel", use the collection name as the batch name
-                const theGroupName = (whichWayToBatch === "byLevel") ? coll.name : theBatch;   //  todo: really should be title
-
-                //  change the `att` field to include fields for `batch` and `collection`
-                att["batch"] = theGroupName
-                att["collection"] = coll.name;  //  need this as part of the resource so we can change hidden
-
-                //  this is where multiVariateExtras_ui.batchRecord gets set!
-                //  add an element to the object for this batch if it's not there already
-
-                if (!multiVariateExtras_ui.batchRecord[theGroupName]) {
-                    multiVariateExtras_ui.batchRecord[theGroupName] = {open: true, attrs: [], mode: ""};
-                }
-                multiVariateExtras_ui.batchRecord[theGroupName].attrs.push(att.name);
-                multiVariateExtras_ui.batchRecord[theGroupName].mode = whichWayToBatch;
-            })
-        })
-    },
 
     getTagAttributeName : function() {
         let tagAttributeName = document.getElementById("tag-attribute-name-text").value;
@@ -607,58 +530,7 @@ const multiVariateExtras = {
             await connect.tagging.clearAllTagsFrom(theTagName);
         },
 
-        /**
-         * Handles user press of a visibility button for a single attribute (not a batch)
-         *
-         * @param iAttName
-         * @param iHidden       are we hiding this?
-         * @returns {Promise<void>}
-         */
-        oneAttributeVisibilityButton: async function (iAttName, iHidden) {
-            await connect.showHideAttribute(multiVariateExtras.datasetInfo.name, iAttName, !iHidden);
-            //  multiVariateExtras_ui.update();   //  not needed here; called from the notification handler
 
-        },
-
-        batchVisibilityButton: async function (event) {
-
-            event.stopPropagation();
-            event.preventDefault();
-
-            const theID = event.target.id;
-            const theType = theID.substring(0, 4);
-            const theBatchName = theID.substring(5);
-            const toHide = theType === "hide";
-
-            multiVariateExtras.log(`${toHide ? "Hiding" : "Showing"} all attributes in [${theBatchName}]`);
-
-            let theAttNames = [];
-
-            multiVariateExtras.datasetInfo.collections.forEach(coll => {
-                coll.attrs.forEach(att => {
-                    if (att.batch === theBatchName) {
-                        theAttNames.push(att.name);    //  collect all these names
-                    }
-                })
-            })
-            const goodAttributes = await connect.showHideAttributeList(multiVariateExtras.datasetInfo.name, theAttNames, toHide);
-            //  multiVariateExtras.updateAttributes(goodAttributes);
-            //          multiVariateExtras_ui.update    //  not needed here; called from the notification handler
-        },
-
-        toggleAttributeGroupingMode: function() {
-            const newMode = (multiVariateExtras.attributeGroupingMode === multiVariateExtras.constants.kGroupAttributeByBatchMode) ?
-                multiVariateExtras.constants.kGroupAttributeByLevelMode : multiVariateExtras.constants.kGroupAttributeByBatchMode;
-
-            multiVariateExtras.attributeGroupingMode = newMode;
-            multiVariateExtras_ui.update();
-        },
-
-        toggleDetail: function (event) {
-            const theBatchName = event.target.id.substring(8);
-            multiVariateExtras_ui.recordCurrentOpenDetailStates();
-            multiVariateExtras.log(`batch toggle! ${theBatchName}`);
-        },
 
         //  todo: decide if we really need this
         handleSelectionChangeFromCODAP: async function () {
@@ -1529,9 +1401,6 @@ const multiVariateExtras = {
         tagValueGroupAElementID: "tag-value-group-A",
         tagValueGroupBElementID: "tag-value-group-B",
         tagPercentageElementID: "tag-percentage",
-        noBatchString: "--",
-        kGroupAttributeByBatchMode : "byBatch",
-        kGroupAttributeByLevelMode : "byLevel",
         defaultTagName : "Tag",
     },
 

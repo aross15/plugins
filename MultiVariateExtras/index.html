@@ -80,7 +80,6 @@
         <li><a href="#dataset">dataset</a></li>
         <li><a href="#plot-matrix">plot matrix</a></li>
         <li><a href="#correlation">correlation</a></li>
-        <li><a href="#atts">attributes</a></li>
         <li><a href="#tag-cases">tag cases</a></li>
     </ul>
 
@@ -246,35 +245,7 @@
 
     </div>
 
-    <div id="atts">
-        <div class="stripe">
-            <div>Group attributes by: </div>
-            <div
-                    id="attribute-grouping-mode-control"
-                    onmousedown="multiVariateExtras.handlers.toggleAttributeGroupingMode()">
-            </div>
-<!--
-            <input id="byBatchButton" name="batchingStrategyRadioGroup"
-                   onchange="multiVariateExtras_ui.update()"
-                   value="byBatch" type="radio" checked>
-            <span>batch  | layer</span>
-            <input id="byLevelButton" name="batchingStrategyRadioGroup"
-                   onchange="multiVariateExtras_ui.update()"
-                   value="byLevel" type="radio">
--->
-        </div>
 
-        <div id="batchNameDIV" class="stripe">
-            New batch name: &ensp;
-            <input type="text" id="batch-name-text-input"
-                   placeholder="batch name"
-                   style="width : 99px;"
-                   onchange="multiVariateExtras_ui.changeAttributeBatchNameInput()">
-
-        </div>
-        <div id="chooseAttributeDiv"></div>
-
-    </div>
 
     <!--
         Cases and Tags
