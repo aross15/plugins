@@ -40,6 +40,7 @@ const multiVariateExtras = {
     codapVersion: "v2",    //  stores the selected CODAP version (v2 or v3)
     createdGraphsMap: new Map(), //  stores created graphs by dataset name
     plotMatrixHiddenAttributes: new Set(), //  stores attributes hidden in plot matrix context
+    correlationHiddenAttributes: new Set(), //  stores attributes hidden in correlation context
 
     initialize: async function () {
         await connect.initialize();
@@ -449,6 +450,12 @@ const multiVariateExtras = {
             if (iDsID !== multiVariateExtras.dsID) {   //      there has been a change in dataset ID; either it's new or an actual change
                 multiVariateExtras.log(`ds      now looking at dataset ${iDsID} (multiVariateExtras.setTargetDatasetByID())`);
                 multiVariateExtras.dsID = iDsID;
+                
+                // Clear hidden attributes sets when switching to a new dataset
+                multiVariateExtras.plotMatrixHiddenAttributes.clear();
+                multiVariateExtras.correlationHiddenAttributes.clear();
+                multiVariateExtras.log(`Cleared hidden attributes sets for new dataset`);
+                
                 await notify.setUpNotifications();
             } else {
                 multiVariateExtras.log(`ds      still looking at dataset ${iDsID} (multiVariateExtras.setTargetDatasetByID())`);
@@ -523,25 +530,41 @@ const multiVariateExtras = {
                 await pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
                 multiVariateExtras.log("Correlation dataset initialized successfully");
 
-            // Create a mapping of attribute names to their order in the table
-            const attributeOrderMap = new Map();
-            let attributeCounter = 1;
-            
-            // First pass: build the order mapping
-            for (const coll of multiVariateExtras.datasetInfo.collections) {
-                for (const attr of coll.attrs) {
-                    attributeOrderMap.set(attr.name, attributeCounter++);
+                // Create a mapping of attribute names to their order in the table
+                const attributeOrderMap = new Map();
+                let attributeCounter = 1;
+                
+                // First pass: build the order mapping
+                for (const coll of multiVariateExtras.datasetInfo.collections) {
+                    for (const attr of coll.attrs) {
+                        attributeOrderMap.set(attr.name, attributeCounter++);
+                    }
                 }
-            }
 
-            // Loop through all collections and compute correlations
-            for (const coll of multiVariateExtras.datasetInfo.collections) {
+                // Filter out hidden attributes for correlation analysis
+                const visibleAttributes = [];
+                for (const coll of multiVariateExtras.datasetInfo.collections) {
+                    for (const attr of coll.attrs) {
+                        if (!multiVariateExtras.correlationHiddenAttributes.has(attr.name)) {
+                            visibleAttributes.push(attr);
+                        }
+                    }
+                }
+
+                if (visibleAttributes.length === 0) {
+                    multiVariateExtras.warn("No attributes available for correlation analysis (all attributes are hidden)");
+                    return;
+                }
+
+                multiVariateExtras.log(`Computing correlations for ${visibleAttributes.length} visible attributes: ${visibleAttributes.map(a => a.name).join(', ')}`);
+
+                // Loop through visible attributes and compute correlations
                 const nCases = await connect.getItemCountFrom(multiVariateExtras.datasetInfo.name);
                 
-                for (const attr1 of coll.attrs) {
+                for (const attr1 of visibleAttributes) {
                     const attr_name1 = attr1["name"];
 
-                    for (const attr2 of coll.attrs) {
+                    for (const attr2 of visibleAttributes) {
                         const attr_name2 = attr2["name"];
 
                         let correlationType = "none yet";
@@ -655,9 +678,8 @@ const multiVariateExtras = {
                         }
                     }
                 }
-            }
 
-            multiVariateExtras.log("Correlation table computation completed");
+                multiVariateExtras.log("Correlation table computation completed");
             } catch (error) {
                 multiVariateExtras.error(`Error in computeCorrelationTable: ${error}`);
                 console.error("Full error details:", error);
@@ -890,6 +912,29 @@ const multiVariateExtras = {
             
             // Update the UI to reflect the change
             multiVariateExtras_ui.plotMatrixAttributeControls.install();
+        },
+
+        /**
+         * Handles user press of a visibility button for a single attribute in the correlation tab
+         *
+         * @param iAttName - The name of the attribute
+         * @param iHidden - Whether the attribute is currently hidden
+         * @returns {Promise<void>}
+         */
+        correlationAttributeVisibilityButton: async function (iAttName, iHidden) {
+            // Toggle the hidden state in the correlation context
+            if (iHidden) {
+                // Currently hidden, so make it visible
+                multiVariateExtras.correlationHiddenAttributes.delete(iAttName);
+                multiVariateExtras.log(`Correlation attribute ${iAttName} is now visible`);
+            } else {
+                // Currently visible, so hide it
+                multiVariateExtras.correlationHiddenAttributes.add(iAttName);
+                multiVariateExtras.log(`Correlation attribute ${iAttName} is now hidden`);
+            }
+            
+            // Update the UI to reflect the change
+            multiVariateExtras_ui.correlationAttributeControls.install();
         },
 
         /**

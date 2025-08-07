@@ -60,6 +60,7 @@ const multiVariateExtras_ui = {
 
         if (multiVariateExtras.datasetInfo) {
             this.plotMatrixAttributeControls.install();  // Install plot matrix attribute controls
+            this.correlationAttributeControls.install(); // Install correlation attribute controls
             await this.makeSummary();
             this.updateCorrelationDatasetName();  // Update correlation tab dataset name
             this.updatePlotMatrixDatasetName();   // Update plot matrix tab dataset name
@@ -256,6 +257,83 @@ const multiVariateExtras_ui = {
 
         /**
          * Install the plot matrix attribute controls
+         */
+        install: function () {
+            const tbody = document.getElementById(this.tbodyID);
+            if (tbody) {
+                tbody.innerHTML = this.make();
+            }
+        }
+    },
+
+    /**
+     * Correlation attribute controls section
+     */
+    correlationAttributeControls: {
+        tbodyID: "correlation-attribute-tbody",
+
+        /**
+         * Create HTML for the correlation attribute controls table
+         * @returns {string} the HTML for the table body
+         */
+        make: function () {
+            let tGuts = "";
+
+            // Get attributes using the centralized function
+            const attributes = multiVariateExtras.getAttributesWithTypes();
+            
+            if (attributes.length === 0) {
+                tGuts = `<tr><td colspan="3" style="text-align: center; padding: 8px; color: #666;">No attributes available</td></tr>`;
+            } else {
+                attributes.forEach(attr => {
+                    tGuts += this.makeOneAttributeRow(attr);
+                });
+            }
+
+            return tGuts;
+        },
+
+        /**
+         * Create HTML for one attribute row in the correlation table
+         * @param {Object} attr - Attribute object with name and type properties
+         * @returns {string} HTML for one table row
+         */
+        makeOneAttributeRow: function (attr) {
+            // Check if this attribute is hidden in the correlation context
+            const isHidden = multiVariateExtras.correlationHiddenAttributes && 
+                           multiVariateExtras.correlationHiddenAttributes.has(attr.name);
+            
+            const visibilityIconPath = isHidden
+                ? "../common/art/slide-off-simplest.png"
+                : "../common/art/slide-on-simplest.png";
+
+            const theHint = isHidden ?
+                `click to include ${attr.name} in correlation analysis` :
+                `click to exclude ${attr.name} from correlation analysis`;
+
+            return `<tr>
+                <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">
+                    <div draggable="false">
+                        <img class="slide-switch" draggable="false"
+                            src="${visibilityIconPath}" 
+                            title="${theHint}" 
+                            onclick="multiVariateExtras.handlers.correlationAttributeVisibilityButton('${attr.name}', ${isHidden})" 
+                            alt="correlation visibility switch"  
+                            style="cursor: pointer;"
+                        />
+                    </div>
+                </td>
+                <td style="text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; color: #666;">
+                    ${attr.type || "[no type listed]"}
+                </td>
+                <td style="text-align: left; padding: 8px; border-bottom: 1px solid #eee;">
+                    ${attr.name}
+                </td>
+            </tr>`;
+        },
+
+        /**
+         * Install the correlation attribute controls
          */
         install: function () {
             const tbody = document.getElementById(this.tbodyID);

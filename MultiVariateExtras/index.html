@@ -66,7 +66,11 @@
     <script>
         $(function () {
             $("#tabs").tabs();
-            multiVariateExtras.initialize();
+            if (typeof multiVariateExtras !== 'undefined') {
+                multiVariateExtras.initialize();
+            } else {
+                console.error("multiVariateExtras is not defined. Check script loading order.");
+            }
         });
 
     </script>
@@ -200,6 +204,29 @@
         <div class="stripe">
             <div style="text-align: center; font-weight: bold; margin-bottom: 20px;">
                 Dataset: <span id="correlation-dataset-name">No dataset selected</span>
+            </div>
+        </div>
+
+        <div class="stripe">
+            <div style="text-align: center; font-size: 12px; color: #666; margin-bottom: 20px;">
+                Ensure that each attribute has the correct type before computing the correlations. Attributes with no type listed will be treated as categorical.
+            </div>
+        </div>
+
+        <div class="stripe" style="margin-bottom: 20px;">
+            <div id="correlation-attribute-controls" style="display: flex; justify-content: center;">
+                <table id="correlation-attribute-table" style="border-collapse: collapse; width: 100%; max-width: 600px;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: center; padding: 8px; border-bottom: 1px solid #ccc; width: 80px;">Include</th>
+                            <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ccc; width: 120px;">Type</th>
+                            <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ccc;">Attribute Name</th>
+                        </tr>
+                    </thead>
+                    <tbody id="correlation-attribute-tbody">
+                        <!-- Attribute rows will be populated here -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
