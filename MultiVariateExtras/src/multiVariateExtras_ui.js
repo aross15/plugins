@@ -87,7 +87,7 @@ const multiVariateExtras_ui = {
                 })
             })
         }
-        //  const nCases = await connect.getItemCountFrom(multiVariateExtras.datasetInfo.name);
+        //  const nCases = await connect.getItemCountFrom(multiVariateExtras.datasetInfo.titlename);
         const nCases = await connect.getLastCollectionCaseCount(
             multiVariateExtras.datasetInfo.name,
             multiVariateExtras.getLastCollectionName()
@@ -120,17 +120,17 @@ const multiVariateExtras_ui = {
     updateCorrelationDatasetName: function () {
         const correlationDatasetElement = document.getElementById("correlation-dataset-name");
         if (correlationDatasetElement) {
-            if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.name) {
-                // Use the dataset name from datasetInfo
-                correlationDatasetElement.textContent = multiVariateExtras.datasetInfo.name;
-            } else if (multiVariateExtras.datasetList && multiVariateExtras.datasetList.length > 0) {
-                // Fallback: find the current dataset by ID and use its title
+            if (multiVariateExtras.datasetList && multiVariateExtras.datasetList.length > 0) {
+                // Find the current dataset by ID and use its title
                 const currentDataset = multiVariateExtras.datasetList.find(ds => ds.id === multiVariateExtras.dsID);
                 if (currentDataset) {
                     correlationDatasetElement.textContent = currentDataset.title || currentDataset.name;
                 } else {
                     correlationDatasetElement.textContent = "No dataset selected";
                 }
+            } else if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.name) {
+                // Fallback: use the dataset name from datasetInfo
+                correlationDatasetElement.textContent = multiVariateExtras.datasetInfo.name;
             } else {
                 correlationDatasetElement.textContent = "No dataset selected";
             }
@@ -143,17 +143,17 @@ const multiVariateExtras_ui = {
     updatePlotMatrixDatasetName: function () {
         const plotMatrixDatasetElement = document.getElementById("plot-matrix-dataset-name");
         if (plotMatrixDatasetElement) {
-            if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.name) {
-                // Use the dataset name from datasetInfo
-                plotMatrixDatasetElement.textContent = multiVariateExtras.datasetInfo.name;
-            } else if (multiVariateExtras.datasetList && multiVariateExtras.datasetList.length > 0) {
-                // Fallback: find the current dataset by ID and use its title
+            if (multiVariateExtras.datasetList && multiVariateExtras.datasetList.length > 0) {
+                // Find the current dataset by ID and use its title
                 const currentDataset = multiVariateExtras.datasetList.find(ds => ds.id === multiVariateExtras.dsID);
                 if (currentDataset) {
                     plotMatrixDatasetElement.textContent = currentDataset.title || currentDataset.name;
                 } else {
                     plotMatrixDatasetElement.textContent = "No dataset selected";
                 }
+            } else if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.name) {
+                // Fallback: use the dataset name from datasetInfo
+                plotMatrixDatasetElement.textContent = multiVariateExtras.datasetInfo.name;
             } else {
                 plotMatrixDatasetElement.textContent = "No dataset selected";
             }

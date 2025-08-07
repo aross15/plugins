@@ -584,7 +584,7 @@ const multiVariateExtras = {
                             
                             try {
                                 // Get all cases and extract numeric values for correlation
-                                multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.name}`);
+                                multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.title}`);
                                 const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
                                 multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
                                 
@@ -640,7 +640,8 @@ const multiVariateExtras = {
 
                         // Create the correlation case data
                         const correlationCase = {
-                            "TableName": multiVariateExtras.datasetInfo.name,
+                            "TableName": multiVariateExtras.datasetInfo.title, // .title is better than .name since
+                            // .name is sometimes something the user can't see, like 157USrollercoasters
                             "Predictor": attr_name1,
                             "Response": attr_name2,
                             "correlation": correlationResult,
@@ -880,7 +881,7 @@ const multiVariateExtras = {
                 // Store the created graphs in the Map using dataset name as key
                 if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.name) {
                     multiVariateExtras.createdGraphsMap.set(multiVariateExtras.datasetInfo.name, createdGraphs);
-                    multiVariateExtras.log(`Stored ${createdGraphs.length} graphs for dataset: ${multiVariateExtras.datasetInfo.name}`);
+                    multiVariateExtras.log(`Stored ${createdGraphs.length} graphs for dataset: ${multiVariateExtras.datasetInfo.titie}`);
                 }
                 
                 return createdGraphs;
@@ -948,14 +949,15 @@ const multiVariateExtras = {
             }
 
             const datasetName = multiVariateExtras.datasetInfo.name;
+            const datasetTitle = multiVariateExtras.datasetInfo.title;
             const graphs = multiVariateExtras.utilities.getCreatedGraphs(datasetName);
             
             if (!graphs || graphs.length === 0) {
-                multiVariateExtras.log(`No plot matrix graphs found for dataset: ${datasetName}`);
+                multiVariateExtras.log(`No plot matrix graphs found for dataset: ${datasetTitle}`);
                 return;
             }
 
-            multiVariateExtras.log(`Deleting ${graphs.length} plot matrix graphs for dataset: ${datasetName}`);
+            multiVariateExtras.log(`Deleting ${graphs.length} plot matrix graphs for dataset: ${datasetTitle}`);
 
             try {
                 for (const graphId of graphs) {
