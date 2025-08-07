@@ -648,17 +648,16 @@ const multiVariateExtras_ui = {
             dropdown.removeChild(dropdown.lastChild);
         }
 
-        // Add attribute options if we have dataset info
-        if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.collections) {
-            for (const coll of multiVariateExtras.datasetInfo.collections) {
-                for (const attr of coll.attrs) {
-                    const option = document.createElement("option");
-                    option.value = attr.name;
-                    option.textContent = attr.name;
-                    dropdown.appendChild(option);
-                }
-            }
-        }
+        // Get attributes using the centralized function
+        const attributes = multiVariateExtras.getAttributesWithTypes();
+        
+        // Add attribute options
+        attributes.forEach(attr => {
+            const option = document.createElement("option");
+            option.value = attr.name;
+            option.textContent = attr.name;
+            dropdown.appendChild(option);
+        });
     },
 
 
