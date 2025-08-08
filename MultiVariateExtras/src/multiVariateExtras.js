@@ -512,180 +512,170 @@ const multiVariateExtras = {
             multiVariateExtras_ui.update();
         },
 
-        /**
+
+
+   /**
          * Handles user click on "compute table" button in correlation tab
          * Computes pairwise correlation values and records the results
          */
-        computeCorrelationTable: async function () {
-            if (!multiVariateExtras.datasetInfo) {
-                multiVariateExtras.warn("No dataset selected for correlation analysis");
-                return;
+   computeCorrelationTable2: async function () {
+    if (!multiVariateExtras.datasetInfo) {
+        multiVariateExtras.warn("No dataset selected for correlation analysis");
+        return;
+    }
+
+    const iCallback = undefined;
+
+    try {
+        // Initialize the correlation dataset in CODAP
+        multiVariateExtras.log("2Initializing correlation dataset...");
+        await pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
+        multiVariateExtras.log("Correlation dataset initialized successfully");
+
+        // Create a mapping of attribute names to their order in the table
+        const attributeOrderMap = new Map();
+        let attributeCounter = 1;
+        
+        // First pass: build the order mapping
+        for (const coll of multiVariateExtras.datasetInfo.collections) {
+            for (const attr of coll.attrs) {
+                attributeOrderMap.set(attr.name, attributeCounter++);
             }
+        }
 
-            const iCallback = undefined;
-
-            try {
-                // Initialize the correlation dataset in CODAP
-                multiVariateExtras.log("Initializing correlation dataset...");
-                await pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
-                multiVariateExtras.log("Correlation dataset initialized successfully");
-
-                // Create a mapping of attribute names to their order in the table
-                const attributeOrderMap = new Map();
-                let attributeCounter = 1;
-                
-                // First pass: build the order mapping
-                for (const coll of multiVariateExtras.datasetInfo.collections) {
-                    for (const attr of coll.attrs) {
-                        attributeOrderMap.set(attr.name, attributeCounter++);
-                    }
+        // Filter out hidden attributes for correlation analysis
+        const visibleAttributes = [];
+        for (const coll of multiVariateExtras.datasetInfo.collections) {
+            for (const attr of coll.attrs) {
+                if (!multiVariateExtras.correlationHiddenAttributes.has(attr.name)) {
+                    visibleAttributes.push(attr);
                 }
-
-                // Filter out hidden attributes for correlation analysis
-                const visibleAttributes = [];
-                for (const coll of multiVariateExtras.datasetInfo.collections) {
-                    for (const attr of coll.attrs) {
-                        if (!multiVariateExtras.correlationHiddenAttributes.has(attr.name)) {
-                            visibleAttributes.push(attr);
-                        }
-                    }
-                }
-
-                if (visibleAttributes.length === 0) {
-                    multiVariateExtras.warn("No attributes available for correlation analysis (all attributes are hidden)");
-                    return;
-                }
-
-                multiVariateExtras.log(`Computing correlations for ${visibleAttributes.length} visible attributes: ${visibleAttributes.map(a => a.name).join(', ')}`);
-
-                // Loop through visible attributes and compute correlations
-                const nCases = await connect.getItemCountFrom(multiVariateExtras.datasetInfo.name);
-                
-                for (const attr1 of visibleAttributes) {
-                    const attr_name1 = attr1["name"];
-
-                    for (const attr2 of visibleAttributes) {
-                        const attr_name2 = attr2["name"];
-
-                        let correlationType = "none yet";
-                        let correlationResult = null;
-                        let nBlanks1_actual = 0;
-                        let nBlanks2_actual = 0;
-                        let correlBlanks = null;
-                        let nCompleteCases = 0;
-
-                        // Map attribute types to essential categories
-                        const essentialType1 = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr1["type"]);
-                        const essentialType2 = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr2["type"]);
-
-                        // if both attributes have type numeric, use Pearson correlation:
-                        if (essentialType1 === "EssentiallyNumeric" && essentialType2 === "EssentiallyNumeric") {
-                            correlationType = "Pearson";
-                            
-                            try {
-                                // Get all cases and extract numeric values for correlation
-                                multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.title}`);
-                                const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
-                                multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
-                                
-                                const bivariateData = [];
-                                
-                                Object.values(allCases).forEach(aCase => {
-                                    const val1 = aCase.values[attr_name1];
-                                    const val2 = aCase.values[attr_name2];
-                                    
-                                    // Convert to numbers, handling various missing value formats
-                                    const num1 = (val1 === null || val1 === undefined || val1 === "") ? null : parseFloat(val1);
-                                    const num2 = (val2 === null || val2 === undefined || val2 === "") ? null : parseFloat(val2);
-                                    
-                                    bivariateData.push({x: num1, y: num2});
-                                });
-                                
-                                multiVariateExtras.log(`Created ${bivariateData.length} data points for correlation`);
-                                
-                                // Use our custom correlation function that also computes missingness correlation
-                                const correlationResults = multiVariateExtras.correlationUtils.onlinePearsonWithMissingCorr(bivariateData);
-                                
-                                correlationResult = correlationResults.correlation;
-                                nCompleteCases = correlationResults.nCompleteCases;
-                                nBlanks1_actual = correlationResults.nxMissing;
-                                nBlanks2_actual = correlationResults.nyMissing;
-                                correlBlanks = correlationResults.missingnessCorrelation;
-                                
-                            } catch (error) {
-                                console.error(`Error computing correlation between ${attr_name1} and ${attr_name2}:`, error);
-                                correlationResult = null;
-                                correlBlanks = null;
-                            }
-                        } else {
-                            correlationType = "none";
-                            correlationResult = null;
-                            correlBlanks = null;
-                        }
-
-                        // Compute confidence intervals and p-value if we have a valid correlation
-                        let CI_low95 = null;
-                        let CI_high95 = null;
-                        let p_value = null;
-
-                        if (correlationResult !== null && !isNaN(correlationResult) && nCompleteCases > 3) {
-                            const ciResults = multiVariateExtras.correlationUtils.computeCorrelationCI(correlationResult, nCompleteCases);
-                            CI_low95 = ciResults.CI_low;
-                            CI_high95 = ciResults.CI_high;
-                            
-                            // Simple p-value approximation (for exact calculation, would need t-distribution)
-                            const t_stat = correlationResult * Math.sqrt((nCompleteCases - 2) / (1 - correlationResult * correlationResult));
-                            p_value = 2 * (1 - multiVariateExtras.correlationUtils.standardNormalCDF(Math.abs(t_stat)));
-                        }
-
-                        // Create the correlation case data
-                        const correlationCase = {
-                            "TableName": multiVariateExtras.datasetInfo.title, // .title is better than .name since
-                            // .name is sometimes something the user can't see, like 157USrollercoasters
-                            "Predictor": attr_name1,
-                            "Response": attr_name2,
-                            "correlation": correlationResult,
-                            "correlationType": correlationType,
-                            "nNeitherMissing": nCompleteCases,
-                            "nCases": nCases,
-                            "nBlanks1": nBlanks1_actual,
-                            "nBlanks2": nBlanks2_actual,
-                            "correlBlanks": correlBlanks,
-                            "CI_low95": CI_low95,
-                            "CI_high95": CI_high95,
-                            "p_value": p_value,
-                            "date": new Date().toISOString(),
-                            "type1": attr1["type"],
-                            "unit1": attr1["unit"] || "",
-                            "type2": attr2["type"],
-                            "unit2": attr2["unit"] || "",
-                            "description1": attr1["description"] || "",
-                            "description2": attr2["description"] || "",
-                            "table_order_Predictor": `${String(attributeOrderMap.get(attr_name1) || 0).padStart(3, '0')}_${attr_name1}`,
-                            "table_order_Response": `${String(attributeOrderMap.get(attr_name2) || 0).padStart(3, '0')}_${attr_name2}`,
-                            
-                            // we're calling the date function repeatedly here,
-                            // and we might get slightly different results each time,
-                            // and that's mostly ok since the computations were
-                            // in fact done at different times.
-                        };
-
-                        // Send the data to CODAP
-                        try {
-                            await pluginHelper.createItems(correlationCase, multiVariateExtras.dataSetCorrelations.name, iCallback);
-                            multiVariateExtras.log(`Created correlation entry for ${attr_name1} vs ${attr_name2}`);
-                        } catch (error) {
-                            multiVariateExtras.error(`Failed to create correlation entry for ${attr_name1} vs ${attr_name2}: ${error}`);
-                        }
-                    }
-                }
-
-                multiVariateExtras.log("Correlation table computation completed");
-            } catch (error) {
-                multiVariateExtras.error(`Error in computeCorrelationTable: ${error}`);
-                console.error("Full error details:", error);
             }
-        },
+        }
+
+        if (visibleAttributes.length === 0) {
+            multiVariateExtras.warn("No attributes available for correlation analysis (all attributes are hidden)");
+            return;
+        }
+
+        multiVariateExtras.log(`Computing correlations for ${visibleAttributes.length} visible attributes: ${visibleAttributes.map(a => a.name).join(', ')}`);
+
+        const nCases = await connect.getItemCountFrom(multiVariateExtras.datasetInfo.name);
+        
+        // Get all cases
+        multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.title}`);
+        const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
+        multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
+    
+
+        // Loop through visible attributes and compute correlations
+        
+        for (const attr1 of visibleAttributes) {
+            const attr_name1 = attr1["name"];
+
+            for (const attr2 of visibleAttributes) {
+                const attr_name2 = attr2["name"];
+
+                let correlationType = "none yet";
+                let correlationResult = null;
+                let nBlanks1_actual = 0;
+                let nBlanks2_actual = 0;
+                let correlBlanks = null;
+                let nCompleteCases = 0;
+
+                // Map attribute types to essential categories
+                const essentialType1 = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr1["type"]);
+                const essentialType2 = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr2["type"]);
+
+                // if both attributes have type numeric, use Pearson correlation:
+                if (essentialType1 === "EssentiallyNumeric" && essentialType2 === "EssentiallyNumeric") {
+                    correlationType = "Pearson";
+                    
+                    try { //  compute correlation using streaming computation
+                        // Use our custom correlation function that also computes missingness correlation
+                        const correlationResults = multiVariateExtras.correlationUtils.onlinePearsonWithMissingCorr2(allCases, attr_name1, attr_name2);
+                        
+                        correlationResult = correlationResults.correlation;
+                        nCompleteCases = correlationResults.nCompleteCases;
+                        nBlanks1_actual = correlationResults.nxMissing;
+                        nBlanks2_actual = correlationResults.nyMissing;
+                        correlBlanks = correlationResults.missingnessCorrelation;
+                        
+                    } catch (error) {
+                        console.error(`Error computing correlation between ${attr_name1} and ${attr_name2}:`, error);
+                        correlationResult = null;
+                        correlBlanks = null;
+                    }
+                } else {
+                    correlationType = "none";
+                    correlationResult = null;
+                    correlBlanks = null;
+                }
+
+                // Compute confidence intervals and p-value if we have a valid correlation
+                let CI_low95 = null;
+                let CI_high95 = null;
+                let p_value = null;
+
+                if (correlationResult !== null && !isNaN(correlationResult) && nCompleteCases > 3) {
+                    const ciResults = multiVariateExtras.correlationUtils.computeCorrelationCI(correlationResult, nCompleteCases);
+                    CI_low95 = ciResults.CI_low;
+                    CI_high95 = ciResults.CI_high;
+                    
+                    // Simple p-value approximation (for exact calculation, would need t-distribution)
+                    const t_stat = correlationResult * Math.sqrt((nCompleteCases - 2) / (1 - correlationResult * correlationResult));
+                    p_value = 2 * (1 - multiVariateExtras.correlationUtils.standardNormalCDF(Math.abs(t_stat)));
+                }
+
+                // Create the correlation case data
+                const correlationCase = {
+                    "TableName": multiVariateExtras.datasetInfo.title, // .title is better than .name since
+                    // .name is sometimes something the user can't see, like 157USrollercoasters
+                    "Predictor": attr_name1,
+                    "Response": attr_name2,
+                    "correlation": correlationResult,
+                    "correlationType": correlationType,
+                    "nNeitherMissing": nCompleteCases,
+                    "nCases": nCases,
+                    "nBlanks1": nBlanks1_actual,
+                    "nBlanks2": nBlanks2_actual,
+                    "correlBlanks": correlBlanks,
+                    "CI_low95": CI_low95,
+                    "CI_high95": CI_high95,
+                    "p_value": p_value,
+                    "date": new Date().toISOString(),
+                    "type1": attr1["type"],
+                    "unit1": attr1["unit"] || "",
+                    "type2": attr2["type"],
+                    "unit2": attr2["unit"] || "",
+                    "description1": attr1["description"] || "",
+                    "description2": attr2["description"] || "",
+                    "table_order_Predictor": `${String(attributeOrderMap.get(attr_name1) || 0).padStart(3, '0')}_${attr_name1}`,
+                    "table_order_Response": `${String(attributeOrderMap.get(attr_name2) || 0).padStart(3, '0')}_${attr_name2}`,
+                    
+                    // we're calling the date function repeatedly here,
+                    // and we might get slightly different results each time,
+                    // and that's mostly ok since the computations were
+                    // in fact done at different times.
+                };
+
+                // Send the data to CODAP
+                try {
+                    await pluginHelper.createItems(correlationCase, multiVariateExtras.dataSetCorrelations.name, iCallback);
+                    multiVariateExtras.log(`Created correlation entry for ${attr_name1} vs ${attr_name2}`);
+                } catch (error) {
+                    multiVariateExtras.error(`Failed to create correlation entry for ${attr_name1} vs ${attr_name2}: ${error}`);
+                }
+            }
+        }
+
+        multiVariateExtras.log("Correlation table computation completed");
+    } catch (error) {
+        multiVariateExtras.error(`Error in computeCorrelationTable: ${error}`);
+        console.error("Full error details:", error);
+    }
+},
+
 
         /**
          * Moves a graph component to a new position
@@ -1119,12 +1109,16 @@ const multiVariateExtras = {
             }
         },
 
-        /**
-         * Compute Pearson correlation for actual values and missingness indicators
-         * @param {Array} data - Array of objects with x and y properties
+
+
+         /**
+         * Compute Pearson correlation for actual values and missingness indicators using streaming computation
+         * @param {Object} allCases - Object containing all cases with their values
+         * @param {string} attr_name1 - Name of the first attribute
+         * @param {string} attr_name2 - Name of the second attribute
          * @returns {Object} Object containing correlation results and counts
          */
-        onlinePearsonWithMissingCorr: function(data) {
+         onlinePearsonWithMissingCorr2: function(allCases, attr_name1, attr_name2) {
             // For actual (x, y) values
             let n = 0;
             let meanX = 0.0;
@@ -1145,9 +1139,14 @@ const multiVariateExtras = {
             let nxMissing = 0;
             let nyMissing = 0;
 
-            for (const point of data) {
-                const x = point.x;
-                const y = point.y;
+            // Stream through all cases and compute correlation online
+            Object.values(allCases).forEach(aCase => {
+                const val1 = aCase.values[attr_name1];
+                const val2 = aCase.values[attr_name2];
+                
+                // Convert to numbers, handling various missing value formats
+                const x = (val1 === null || val1 === undefined || val1 === "") ? null : parseFloat(val1);
+                const y = (val2 === null || val2 === undefined || val2 === "") ? null : parseFloat(val2);
 
                 // Create indicator variables (1 if missing, 0 if not missing)
                 const ixMissing = (x === null || x === undefined || x === "" || isNaN(x)) ? 1.0 : 0.0;
@@ -1178,7 +1177,7 @@ const multiVariateExtras = {
                     Sy += dy * (y - meanY);
                     Sxy += dx * (y - meanY);
                 }
-            }
+            });
 
             // Final Pearson correlations
             const rXy = (Sx > 0 && Sy > 0) ? Sxy / Math.sqrt(Sx * Sy) : NaN;
@@ -1194,6 +1193,7 @@ const multiVariateExtras = {
                 totalCases: nInd
             };
         },
+
 
         /**
          * Compute confidence intervals for Pearson correlation coefficient using Fisher's z-transformation
