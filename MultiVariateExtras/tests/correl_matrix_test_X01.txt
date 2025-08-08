@@ -1,0 +1,40 @@
+# name: correl_matrix_test_X01
+# source: invented by Andrew Ross
+# importDate: 2025-07-23T19:46:36.541Z
+# description: data for testing correlation matrix routine including correlation of missingness
+# attribute -- name: attrX, description: some X values centered on zero, type: numeric, unit: units_of_X, precision: 2, editable: true
+# attribute -- name: copyX, description: a copy of X to get correlation coefficient with X of +1 exactly, type: numeric, unit: units_of_X, editable: true
+# attribute -- name: negX, description: -1* X to get correlation coefficient with X of -1 exactly, type: numeric, unit: units_of_X, editable: true
+# attribute -- name: Only_Integer_X, description: X value if X is integer&comma; otherwise missing. Hoping for -1 correlation of missingness with Only_Fractional_X, type: numeric, unit: units_of_X, editable: true
+# attribute -- name: Only_Fractional_X, description: X value if X is fractional (noninteger)&comma; otherwise missing. Hoping for -1 correlation of missingness with Only_Integer_X, type: numeric, unit: units_of_X, editable: true
+# attribute -- name: Is_NonNegative_X, description: yes_NonNegative or blank, type: categorical, unit: No_Units, editable: true
+# attribute -- name: Is_Integer_X, description: yes_Integer or blank. Hoping for +1 correlation of missingness with Only_Integer_X&comma; and -1 correlation of missingness with Only_Fractional_X, type: categorical, unit: No_Units, editable: true
+# attribute -- name: sqrtX_or_blank, description: square root of X; provides a nontrivial correlation coefficient with X&comma; and +1 correlation of missingness with Is_NonNegative, type: numeric, unit: Units_of_sqrtX, editable: true
+# attribute -- name: sqrtX_or_NaN, description: if X is negative&comma; give NaN rather than blank, type: numeric, unit: Units_of_sqrtX, editable: true, formula: sqrt(attrX)
+# attribute -- name: squareX, description: the square of X; provides zero correlation with X since X is symmetric across zero, type: numeric, unit: units_of_Xsquared, editable: true
+# attribute -- name: cuberootX, description: cube root of X. Provides nontrivial correlation with X whether X is NonNegative or negative., type: numeric, unit: Units_of_CubeRootX, editable: true
+# attribute -- name: constant12345, description: Just the arbitrarily chosen number 12345 regardless of X. Provides a NaN correlation with X., type: numeric, unit: units_dont_matter_here, editable: true
+# attribute -- name: X_E_20, description: X times 1e20 or 10^20; provides +1 correlation with X unless there are roundoff problems&comma; which seem likely. Chose 1e20 since some calculations might use Avogadro's Number 6.022e23 but 1e20 is a nicer number. Single precision floating point max is about 1e38., type: numeric, unit: Units_of_X, editable: true
+# attribute -- name: X_E_100, description: X times 1e100 or 10^100; provides +1 correlation with X unless there are roundoff problems&comma; which seem likely. Chose 1e100 since it's above single float max but below double float max which is about 1e308, type: numeric, unit: Units_of_X, editable: true
+attrX,copyX,negX,Only_Integer_X,Only_Fractional_X,Is_NonNegative_X,Is_Integer_X,sqrtX_or_blank,sqrtX_or_NaN,squareX,cuberootX,constant12345,X_E_20,X_E_100
+-5,-5,5,-5,,,yes_Integer,,NaN,25,-1.709975947,12345,-5E+20,-5E+100
+-4.5,-4.5,4.5,,-4.5,,,,NaN,20.25,-1.650963624,12345,-4.5E+20,-4.5E+100
+-4,-4,4,-4,,,yes_Integer,,NaN,16,-1.587401052,12345,-4E+20,-4E+100
+-3.5,-3.5,3.5,,-3.5,,,,NaN,12.25,-1.518294486,12345,-3.5E+20,-3.5E+100
+-3,-3,3,-3,,,yes_Integer,,NaN,9,-1.44224957,12345,-3E+20,-3E+100
+-2.5,-2.5,2.5,,-2.5,,,,NaN,6.25,-1.357208808,12345,-2.5E+20,-2.5E+100
+-2,-2,2,-2,,,yes_Integer,,NaN,4,-1.25992105,12345,-2E+20,-2E+100
+-1.5,-1.5,1.5,,-1.5,,,,NaN,2.25,-1.144714243,12345,-1.5E+20,-1.5E+100
+-1,-1,1,-1,,,yes_Integer,,NaN,1,-1,12345,-1E+20,-1E+100
+-0.5,-0.5,0.5,,-0.5,,,,NaN,0.25,-0.793700526,12345,-5E+19,-5E+99
+0,0,0,0,,yes_NonNegative,yes_Integer,0,0,0,0,12345,0,0
+0.5,0.5,-0.5,,0.5,yes_NonNegative,,0.707106781,0.7071067811865476,0.25,0.793700526,12345,5E+19,5E+99
+1,1,-1,1,,yes_NonNegative,yes_Integer,1,1,1,1,12345,1E+20,1E+100
+1.5,1.5,-1.5,,1.5,yes_NonNegative,,1.224744871,1.224744871391589,2.25,1.144714243,12345,1.5E+20,1.5E+100
+2,2,-2,2,,yes_NonNegative,yes_Integer,1.414213562,1.4142135623730951,4,1.25992105,12345,2E+20,2E+100
+2.5,2.5,-2.5,,2.5,yes_NonNegative,,1.58113883,1.5811388300841898,6.25,1.357208808,12345,2.5E+20,2.5E+100
+3,3,-3,3,,yes_NonNegative,yes_Integer,1.732050808,1.7320508075688772,9,1.44224957,12345,3E+20,3E+100
+3.5,3.5,-3.5,,3.5,yes_NonNegative,,1.870828693,1.8708286933869707,12.25,1.518294486,12345,3.5E+20,3.5E+100
+4,4,-4,4,,yes_NonNegative,yes_Integer,2,2,16,1.587401052,12345,4E+20,4E+100
+4.5,4.5,-4.5,,4.5,yes_NonNegative,,2.121320344,2.1213203435596424,20.25,1.650963624,12345,4.5E+20,4.5E+100
+5,5,-5,5,,yes_NonNegative,yes_Integer,2.236067977,2.23606797749979,25,1.709975947,12345,5E+20,5E+100
