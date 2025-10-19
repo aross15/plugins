@@ -190,8 +190,53 @@
             </button>
         </div>
 
+        <!-- I'm allowing ridiculously large max values in case CODAP changes its units system ever.-->
+        <div style="text-align: left; margin-bottom: 1px; padding-left: 1px;">
+            <strong>For each plot:</strong>
+        </div>
+        <div class="stripe" style="margin-bottom: 1px; padding-left: 1px;">
+            <div style="text-align: left; margin-bottom: 1px;">
+                <label for="plot-width-input" style="margin-right: 1px;">Width:</label>
+                <input type="number" id="plot-width-input" value="300" min="0" max="100000" style="width: 50px; padding: 1px; border: 1px solid #ccc; border-radius: 4px; margin-right: 1px;">
+                <label for="plot-height-input" style="margin-right: 1px;">Height:</label>
+                <input type="number" id="plot-height-input" value="250" min="0" max="100000" style="width: 50px; padding: 1px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+        </div>
+
+        <div style="text-align: left; margin-bottom: 1px; padding-left: 1px;">
+            <strong>Upper-left corner of first plot:</strong>
+        </div>
+        <div class="stripe" style="margin-bottom: 1px; padding-left: 1px;">
+            <div style="text-align: left; margin-bottom: 1px;">
+                <label for="plot-x-input" style="margin-right: 1px;">x:</label>
+                <input type="number" id="plot-x-input" value="200" min="0" max="100000" style="width: 50px; padding: 1px; border: 1px solid #ccc; border-radius: 4px; margin-right: 1px;">
+                <label for="plot-y-input" style="margin-right: 1px;">y:</label>
+                <input type="number" id="plot-y-input" value="100" min="0" max="100000" style="width: 50px; padding: 1px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+        </div>
+
+        <div style="text-align: left; margin-bottom: 1px; padding-left: 1px;">
+            <strong>Spacing between plots:</strong>
+        </div>
+        <!-- I'm allowing negative values for two reasons: -->
+        <!-- 1. If you specify a slightly negative value, you can make the plots overlap a bit to save space.-->
+        <!-- You might need to be careful about which plot is on top then.-->
+        <!-- 2. If you specify a negative value roughly the same size as the plot size (in x or y), and specify a large starting x or y value, you can make the plots be created from bottom-to-top or right-to-left or both. -->
+        <div class="stripe" style="margin-bottom: 1px; padding-left: 1px;">
+            <div style="text-align: left; margin-bottom: 1px;">
+                <label for="plot-x-spacing-input" style="margin-right: 1px;">x spacing:</label>
+                <input type="number" id="plot-x-spacing-input" value="5" min="-100000" max="100000" style="width: 50px; padding: 1px; border: 1px solid #ccc; border-radius: 4px; margin-right: 1px;">
+                <label for="plot-y-spacing-input" style="margin-right: 1px;">y spacing:</label>
+                <input type="number" id="plot-y-spacing-input" value="5" min="-100000" max="100000" style="width: 50px; padding: 1px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+        </div>
+
         <div style="text-align: center; font-size: 12px; color: #666; margin-bottom: 20px;">
             Create a matrix of scatter plots showing relationships between all numeric attributes in the dataset.
+        </div>
+
+        <div style="text-align: left; font-size: 11px; color: #666; margin-bottom: 20px; padding-left: 20px; padding-right: 20px;">
+            Units for height, width, and x,y are CODAP workspace pixels; the origin (0,0) is in the upper-left corner and y counts down rather than up.
         </div>
 
         <div id="plot-matrix-content" style="min-height: 200px;">
@@ -233,7 +278,7 @@
         <div class="stripe" style="text-align: center; margin-bottom: 30px;">
             <button 
                 id="compute-table-button" 
-                onclick="multiVariateExtras.handlers.computeCorrelationTable2()"
+                onclick="multiVariateExtras.handlers.computeCorrelationTable()"
                 style="margin-right: 20px; padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px;">
                 compute table
             </button>

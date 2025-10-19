@@ -275,72 +275,28 @@ const multiVariateExtras = {
     },
 
     /**
-     * Calculates the correlation graph layout based on the UI window position.
+     * Calculates the correlation graph layout. This function is deprecated
+     * and no longer calculates positions. It returns null to indicate
+     * that CODAP should use its default positioning.
      * 
-     * This function determines the CODAP version, gets the UI layout, and calculates
-     * the position for the correlation graph with specified offsets.
-     * Default offsets are 10 pixels to the right and 0 pixels down;
-     * 10 pixels so the graph doesn't quite touch the UI window, so it's easier to click on its border.
-     * 
-     * @param {Object} offsets - Optional offset parameters
-     * @param {number} offsets.xoffset - X offset from the right edge of the UI window (default: 10)
-     * @param {number} offsets.yoffset - Y offset from the top edge of the UI window (default: 0)
-     * @returns {Object} Position object with x, y coordinates
+     * @param {Object} offsets - Optional offset parameters (ignored)
+     * @returns {null} Always returns null to let CODAP use defaults
      */
     calculateCorrelGraphLayout: function(offsets = {}) {
-        try {
-            console.log("c=== Correlation Graph Layout Calculation Debug ===");
-            multiVariateExtras.log("m=== Correlation Graph Layout Calculation Debug ===");
-
-            // Use the selected CODAP version from radio buttons
-            const isV3 = this.codapVersion === "v3";
-            console.log(`cCODAP version from radio buttons: ${this.codapVersion}`);
-            multiVariateExtras.log(`mCODAP version from radio buttons: ${this.codapVersion}`);
- 
-            // Get the UI layout based on CODAP version
-            let layout;
-            if (isV3) {
-                layout = this.getMVE_UI_layoutV3();
-            } else {
-                layout = this.getMVE_UI_layoutV2();
-            }
-            
-            // Set default offsets if not provided
-            const xoffset = offsets.xoffset !== undefined ? offsets.xoffset : 10;
-            const yoffset = offsets.yoffset !== undefined ? offsets.yoffset : 0;
-            
-            // Calculate the position: left + width + xoffset, top + yoffset
-            const x = layout.left + layout.width + xoffset;
-            const y = layout.top + yoffset;
-            
-            console.log(`cCalculated correlation graph position: x=${x}, y=${y} (layout: left=${layout.left}, top=${layout.top}, width=${layout.width}, height=${layout.height}, xoffset=${xoffset}, yoffset=${yoffset})`);
-            multiVariateExtras.log(`mCalculated correlation graph position: x=${x}, y=${y} (layout: left=${layout.left}, top=${layout.top}, width=${layout.width}, height=${layout.height}, xoffset=${xoffset}, yoffset=${yoffset})`);
-            
-            const result = { x: x, y: y };
-            console.log("Returning correlation graph position:", result);
-            return result;
-        } catch (error) {
-            multiVariateExtras.error(`Error calculating correlation graph layout: ${error}`);
-            return { x: 111, y: 400 }; // fallback position
-        }
+        multiVariateExtras.log("calculateCorrelGraphLayout: returning null to let CODAP use default positioning");
+        return null;
     },
 
     /**
-     * Calculates the layout positions for plot matrix graphs
+     * Calculates the layout positions for plot matrix graphs.
+     * Reads width, height, x, y, and spacing from the input boxes in the plot matrix tab.
+     * 
      * @param {number} rows - Number of rows in the plot matrix
      * @param {number} cols - Number of columns in the plot matrix
-     * @param {Object} options - Optional object with offsets, widthmult, and heightmult properties
+     * @param {Object} options - Optional object with xoffset and yoffset properties (overrides input box values)
      * @returns {Array} 2D array of objects with x, y, width, height properties
-     * widthmult and heightmult get multiplied by the width and height of the UI window
-     * to determine the width and height of each plot in the matrix.
-     * Widthmult defaults to 1.0, and heightmult defaults to 0.5, because
-     * as of 2025-07-30, the UI window starts at 333px wide and 444px tall,
-     * and the defaults CODAP graph size seems to be 300-by-200 or 300-by-300
-     * (depending on the zoom level???). Since 300/333 is about 1.0 and 200/444 is about 0.5,
-     * these defaults seem to work well to give us default sizes.
-     * This way, the user can control the size of the plots by resizing the 
-     * UI window before creating the plot matrix.
-     * xoffset and yoffset are offsets from the previous graph each time.
+     * xoffset and yoffset are offsets between graphs in the matrix.
+     * If not provided in options, reads from input boxes with fallback defaults of 5 pixels.
      * It's highly unlikely that we'd want to use a different number of rows than columns,
      * but it doesn't hurt to allow it.
      */
@@ -348,40 +304,36 @@ const multiVariateExtras = {
         try {
             console.log("c=== Plot Matrix Layout Calculation Debug ===");
 
-            // Use the selected CODAP version from radio buttons
-            const isV3 = this.codapVersion === "v3";
-            console.log(`cCODAP version from radio buttons: ${this.codapVersion}`);
-
-            // Get the UI layout based on CODAP version
-            let layout;
-            if (isV3) {
-                layout = this.getMVE_UI_layoutV3();
-            } else {
-                layout = this.getMVE_UI_layoutV2();
-            }
+            // Read values from input boxes
+            const plotWidthInput = document.getElementById('plot-width-input');
+            const plotHeightInput = document.getElementById('plot-height-input');
+            const plotXInput = document.getElementById('plot-x-input');
+            const plotYInput = document.getElementById('plot-y-input');
+            const plotXSpacingInput = document.getElementById('plot-x-spacing-input');
+            const plotYSpacingInput = document.getElementById('plot-y-spacing-input');
             
-            // Set default options if not provided
-            const xoffset = options.xoffset !== undefined ? options.xoffset : 5;
-            const yoffset = options.yoffset !== undefined ? options.yoffset : 5;
-            const widthmult = options.widthmult !== undefined ? options.widthmult : 1.0;
-            const heightmult = options.heightmult !== undefined ? options.heightmult : 0.5;
+            // Get values from input boxes, with fallback defaults
+            const plotWidth = plotWidthInput ? parseFloat(plotWidthInput.value) : 300;
+            const plotHeight = plotHeightInput ? parseFloat(plotHeightInput.value) : 250;
+            const startX = plotXInput ? parseFloat(plotXInput.value) : 200;
+            const startY = plotYInput ? parseFloat(plotYInput.value) : 100;
             
-            // Calculate individual plot dimensions
-            const plotWidth = layout.width * widthmult;
-            const plotHeight = layout.height * heightmult;
+            // Get spacing values from input boxes, with fallback defaults
+            // Options can override these values if provided
+            const xoffset = options.xoffset !== undefined ? options.xoffset : 
+                           (plotXSpacingInput ? parseFloat(plotXSpacingInput.value) : 5);
+            const yoffset = options.yoffset !== undefined ? options.yoffset : 
+                           (plotYSpacingInput ? parseFloat(plotYSpacingInput.value) : 5);
             
-            // Calculate starting position: the first plot has its upper-left
-            // corner at the bottom-right corner of the UI window, no offsets needed.
-            const startX = layout.left + layout.width;
-            const startY = layout.top + layout.height;
+            console.log(`cPlot matrix inputs: width=${plotWidth}, height=${plotHeight}, x=${startX}, y=${startY}, xoffset=${xoffset}, yoffset=${yoffset}`);
             
             // Create 2D array of positions
             const positions = [];
             for (let row = 0; row < rows; row++) {
                 const rowPositions = [];
                 for (let col = 0; col < cols; col++) {
-                    const x = startX + col * (plotWidth+xoffset);
-                    const y = startY + row * (plotHeight+yoffset);
+                    const x = startX + col * (plotWidth + xoffset);
+                    const y = startY + row * (plotHeight + yoffset);
                     
                     rowPositions.push({
                         x: x,
@@ -512,98 +464,122 @@ const multiVariateExtras = {
             multiVariateExtras_ui.update();
         },
 
-
-
-   /**
+        /**
          * Handles user click on "compute table" button in correlation tab
          * Computes pairwise correlation values and records the results
          */
-   computeCorrelationTable2: async function () {
-    if (!multiVariateExtras.datasetInfo) {
-        multiVariateExtras.warn("No dataset selected for correlation analysis");
-        return;
-    }
-
-    const iCallback = undefined;
-
-    try {
-        // Initialize the correlation dataset in CODAP
-        multiVariateExtras.log("3Initializing correlation dataset...");
-        await pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
-        multiVariateExtras.log("Correlation dataset initialized successfully");
-
-        // Create a mapping of attribute names to their order in the table
-        const attributeOrderMap = new Map();
-        let attributeCounter = 1;
-        
-        // First pass: build the order mapping
-        for (const coll of multiVariateExtras.datasetInfo.collections) {
-            for (const attr of coll.attrs) {
-                attributeOrderMap.set(attr.name, attributeCounter++);
+        computeCorrelationTable: async function () {
+            if (!multiVariateExtras.datasetInfo) {
+                multiVariateExtras.warn("No dataset selected for correlation analysis");
+                return;
             }
-        }
 
-        // Filter out hidden attributes for correlation analysis
-        const visibleAttributes = [];
-        for (const coll of multiVariateExtras.datasetInfo.collections) {
-            for (const attr of coll.attrs) {
-                if (!multiVariateExtras.correlationHiddenAttributes.has(attr.name)) {
-                    visibleAttributes.push(attr);
+            const iCallback = undefined;
+
+            try {
+                // Initialize the correlation dataset in CODAP
+                multiVariateExtras.log("Initializing correlation dataset...");
+                await pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
+                multiVariateExtras.log("Correlation dataset initialized successfully");
+
+                // Create a mapping of attribute names to their order in the table
+                const attributeOrderMap = new Map();
+                let attributeCounter = 1;
+                
+                // First pass: build the order mapping
+                for (const coll of multiVariateExtras.datasetInfo.collections) {
+                    for (const attr of coll.attrs) {
+                        attributeOrderMap.set(attr.name, attributeCounter++);
+                    }
                 }
-            }
-        }
 
-        if (visibleAttributes.length === 0) {
-            multiVariateExtras.warn("No attributes available for correlation analysis (all attributes are hidden)");
-            return;
-        }
+                // Filter out hidden attributes for correlation analysis
+                const visibleAttributes = [];
+                for (const coll of multiVariateExtras.datasetInfo.collections) {
+                    for (const attr of coll.attrs) {
+                        if (!multiVariateExtras.correlationHiddenAttributes.has(attr.name)) {
+                            visibleAttributes.push(attr);
+                        }
+                    }
+                }
 
-        multiVariateExtras.log(`Computing correlations for ${visibleAttributes.length} visible attributes: ${visibleAttributes.map(a => a.name).join(', ')}`);
+                if (visibleAttributes.length === 0) {
+                    multiVariateExtras.warn("No attributes available for correlation analysis (all attributes are hidden)");
+                    return;
+                }
 
-        const nCases = await connect.getItemCountFrom(multiVariateExtras.datasetInfo.name);
-        
-        // Get all cases
-        multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.title}`);
-        const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
-        multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
-    
+                multiVariateExtras.log(`Computing correlations for ${visibleAttributes.length} visible attributes: ${visibleAttributes.map(a => a.name).join(', ')}`);
 
-        // Loop through visible attributes and compute correlations
-        
-        for (const attr1 of visibleAttributes) {
-            const attr_name1 = attr1["name"]; // Predictor
+                // Loop through visible attributes and compute correlations
+                const nCases = await connect.getItemCountFrom(multiVariateExtras.datasetInfo.name);
+                
+                for (const attr1 of visibleAttributes) {
+                    const attr_name1 = attr1["name"];
 
-            for (const attr2 of visibleAttributes) {
-                const attr_name2 = attr2["name"]; // Response
+                    for (const attr2 of visibleAttributes) {
+                        const attr_name2 = attr2["name"];
 
-                let correlationType = "none yet";
-                let correlationResult = null;
-                let nBlanks1_actual = 0;
-                let nBlanks2_actual = 0;
-                let correlBlanks = null;
-                let nCompleteCases = 0;
-                let CI_low95 = null;
-                let CI_high95 = null;
-                let p_value = null;
+                        let correlationType = "none yet";
+                        let correlationResult = null;
+                        let nBlanks1_actual = 0;
+                        let nBlanks2_actual = 0;
+                        let correlBlanks = null;
+                        let nCompleteCases = 0;
 
-                // Map attribute types to essential categories
-                const essentialType1 = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr1["type"]);
-                const essentialType2 = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr2["type"]);
+                        // Map attribute types to essential categories
+                        const essentialType1 = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr1["type"]);
+                        const essentialType2 = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr2["type"]);
 
-                // if both attributes have type numeric, use Pearson correlation:
-                if (essentialType1 === "EssentiallyNumeric" && essentialType2 === "EssentiallyNumeric") {
-                    correlationType = "Pearson";
-                    
-                    try { //  compute correlation using streaming computation
-                        // Use our custom correlation function that also computes missingness correlation
-                        const correlationResults = multiVariateExtras.correlationUtils.onlinePearsonWithMissingCorr2(allCases, attr_name1, attr_name2);
-                        
-                        correlationResult = correlationResults.correlation;
-                        nCompleteCases = correlationResults.nCompleteCases;
-                        nBlanks1_actual = correlationResults.nxMissing;
-                        nBlanks2_actual = correlationResults.nyMissing;
-                        correlBlanks = correlationResults.missingnessCorrelation;
+                        // if both attributes have type numeric, use Pearson correlation:
+                        if (essentialType1 === "EssentiallyNumeric" && essentialType2 === "EssentiallyNumeric") {
+                            correlationType = "Pearson";
+                            
+                            try {
+                                // Get all cases and extract numeric values for correlation
+                                multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.title}`);
+                                const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
+                                multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
+                                
+                                const bivariateData = [];
+                                
+                                Object.values(allCases).forEach(aCase => {
+                                    const val1 = aCase.values[attr_name1];
+                                    const val2 = aCase.values[attr_name2];
+                                    
+                                    // Convert to numbers, handling various missing value formats
+                                    const num1 = (val1 === null || val1 === undefined || val1 === "") ? null : parseFloat(val1);
+                                    const num2 = (val2 === null || val2 === undefined || val2 === "") ? null : parseFloat(val2);
+                                    
+                                    bivariateData.push({x: num1, y: num2});
+                                });
+                                
+                                multiVariateExtras.log(`Created ${bivariateData.length} data points for correlation`);
+                                
+                                // Use our custom correlation function that also computes missingness correlation
+                                const correlationResults = multiVariateExtras.correlationUtils.onlinePearsonWithMissingCorr(bivariateData);
+                                
+                                correlationResult = correlationResults.correlation;
+                                nCompleteCases = correlationResults.nCompleteCases;
+                                nBlanks1_actual = correlationResults.nxMissing;
+                                nBlanks2_actual = correlationResults.nyMissing;
+                                correlBlanks = correlationResults.missingnessCorrelation;
+                                
+                            } catch (error) {
+                                console.error(`Error computing correlation between ${attr_name1} and ${attr_name2}:`, error);
+                                correlationResult = null;
+                                correlBlanks = null;
+                            }
+                        } else {
+                            correlationType = "none";
+                            correlationResult = null;
+                            correlBlanks = null;
+                        }
+
                         // Compute confidence intervals and p-value if we have a valid correlation
+                        let CI_low95 = null;
+                        let CI_high95 = null;
+                        let p_value = null;
+
                         if (correlationResult !== null && !isNaN(correlationResult) && nCompleteCases > 3) {
                             const ciResults = multiVariateExtras.correlationUtils.computeCorrelationCI(correlationResult, nCompleteCases);
                             CI_low95 = ciResults.CI_low;
@@ -613,134 +589,55 @@ const multiVariateExtras = {
                             const t_stat = correlationResult * Math.sqrt((nCompleteCases - 2) / (1 - correlationResult * correlationResult));
                             p_value = 2 * (1 - multiVariateExtras.correlationUtils.standardNormalCDF(Math.abs(t_stat)));
                         }
-                    } catch (error) {
-                        console.error(`Error computing correlation between ${attr_name1} and ${attr_name2}:`, error);
-                        correlationResult = null;
-                        correlBlanks = null;
-                    }
-                } else if (essentialType1 === "EssentiallyCategorical" && essentialType2 === "EssentiallyNumeric") {
-                    correlationType = "etaSquared"; // definitely lowercase eta (which looks like an n), not uppercase Eta (which looks like an H)
-                    
-                    try {
-                        const correlationResults = multiVariateExtras.correlationUtils.etaSquaredWithMissingCorr(allCases, attr_name1, attr_name2);
-                        
-                        correlationResult = correlationResults.correlation;
-                        nCompleteCases = correlationResults.nCompleteCases;
-                        nBlanks1_actual = correlationResults.nxMissing;
-                        nBlanks2_actual = correlationResults.nyMissing;
-                        correlBlanks = correlationResults.missingnessCorrelation;
-                        
-                    } catch (error) {
-                        console.error(`Error computing eta-squared between ${attr_name1} and ${attr_name2}:`, error);
-                        correlationResult = null;
-                        correlBlanks = null;
-                    }
-                } else if (essentialType1 === "EssentiallyCategorical" && essentialType2 === "EssentiallyCategorical") {
-                    correlationType = "CramersV";
-                    
-                    try {
-                        const correlationResults = multiVariateExtras.correlationUtils.CramersVWithMissingCorr(allCases, attr_name1, attr_name2);
-                        
-                        correlationResult = correlationResults.correlation;
-                        nCompleteCases = correlationResults.nCompleteCases;
-                        nBlanks1_actual = correlationResults.nxMissing;
-                        nBlanks2_actual = correlationResults.nyMissing;
-                        correlBlanks = correlationResults.missingnessCorrelation;
-                        
-                    } catch (error) {
-                        console.error(`Error computing Cramer's V between ${attr_name1} and ${attr_name2}:`, error);
-                        correlationResult = null;
-                        correlBlanks = null;
-                    }
-                } else if (essentialType1 === "EssentiallyNumeric" && essentialType2 === "EssentiallyCategorical") {
-                    correlationType = "NumericPredictCategorical";
-                    // Not clear what to do with numeric predictor, categorical response.
-                    // If the categorical response is binary, we can/should use Point-Biserial.
-                    // But there's no standard technique if the categorical response is not binary.
-                    try {
-                        const correlationResults = multiVariateExtras.correlationUtils.NumericPredictCategoricalWithMissingCorr(allCases, attr_name1, attr_name2);
-                        
-                        correlationResult = correlationResults.correlation;
-                        nCompleteCases = correlationResults.nCompleteCases;
-                        nBlanks1_actual = correlationResults.nxMissing;
-                        nBlanks2_actual = correlationResults.nyMissing;
-                        correlBlanks = correlationResults.missingnessCorrelation;
-                        
-                    } catch (error) {
-                        console.error(`Error computing numeric-predict-categorical correlation between ${attr_name1} and ${attr_name2}:`, error);
-                        correlationResult = null;
-                        correlBlanks = null;
-                    }
-                } else {
-                    correlationType = "MissingCorr";
-                    
-                    try {
-                        const correlationResults = multiVariateExtras.correlationUtils.ComputeMissingCorr(allCases, attr_name1, attr_name2);
-                        
-                        correlationResult = correlationResults.correlation;
-                        nCompleteCases = correlationResults.nCompleteCases;
-                        nBlanks1_actual = correlationResults.nxMissing;
-                        nBlanks2_actual = correlationResults.nyMissing;
-                        correlBlanks = correlationResults.missingnessCorrelation;
-                        
-                    } catch (error) {
-                        console.error(`Error computing missing correlation between ${attr_name1} and ${attr_name2}:`, error);
-                        correlationResult = null;
-                        correlBlanks = null;
+
+                        // Create the correlation case data
+                        const correlationCase = {
+                            "TableName": multiVariateExtras.datasetInfo.title, // .title is better than .name since
+                            // .name is sometimes something the user can't see, like 157USrollercoasters
+                            "Predictor": attr_name1,
+                            "Response": attr_name2,
+                            "correlation": correlationResult,
+                            "correlationType": correlationType,
+                            "nNeitherMissing": nCompleteCases,
+                            "nCases": nCases,
+                            "nBlanks1": nBlanks1_actual,
+                            "nBlanks2": nBlanks2_actual,
+                            "correlBlanks": correlBlanks,
+                            "CI_low95": CI_low95,
+                            "CI_high95": CI_high95,
+                            "p_value": p_value,
+                            "date": new Date().toISOString(),
+                            "type1": attr1["type"],
+                            "unit1": attr1["unit"] || "",
+                            "type2": attr2["type"],
+                            "unit2": attr2["unit"] || "",
+                            "description1": attr1["description"] || "",
+                            "description2": attr2["description"] || "",
+                            "table_order_Predictor": `${String(attributeOrderMap.get(attr_name1) || 0).padStart(3, '0')}_${attr_name1}`,
+                            "table_order_Response": `${String(attributeOrderMap.get(attr_name2) || 0).padStart(3, '0')}_${attr_name2}`,
+                            
+                            // we're calling the date function repeatedly here,
+                            // and we might get slightly different results each time,
+                            // and that's mostly ok since the computations were
+                            // in fact done at different times.
+                        };
+
+                        // Send the data to CODAP
+                        try {
+                            await pluginHelper.createItems(correlationCase, multiVariateExtras.dataSetCorrelations.name, iCallback);
+                            multiVariateExtras.log(`Created correlation entry for ${attr_name1} vs ${attr_name2}`);
+                        } catch (error) {
+                            multiVariateExtras.error(`Failed to create correlation entry for ${attr_name1} vs ${attr_name2}: ${error}`);
+                        }
                     }
                 }
 
- 
-
-                // Create the correlation case data
-                const correlationCase = {
-                    "TableName": multiVariateExtras.datasetInfo.title, // .title is better than .name since
-                    // .name is sometimes something the user can't see, like 157USrollercoasters
-                    "Predictor": attr_name1,
-                    "Response": attr_name2,
-                    "correlation": correlationResult,
-                    "correlationType": correlationType,
-                    "nNeitherMissing": nCompleteCases,
-                    "nCases": nCases,
-                    "nBlanks1": nBlanks1_actual,
-                    "nBlanks2": nBlanks2_actual,
-                    "correlBlanks": correlBlanks,
-                    "CI_low95": CI_low95,
-                    "CI_high95": CI_high95,
-                    "p_value": p_value,
-                    "date": new Date().toISOString(),
-                    "type1": attr1["type"],
-                    "unit1": attr1["unit"] || "",
-                    "type2": attr2["type"],
-                    "unit2": attr2["unit"] || "",
-                    "description1": attr1["description"] || "",
-                    "description2": attr2["description"] || "",
-                    "table_order_Predictor": `${String(attributeOrderMap.get(attr_name1) || 0).padStart(3, '0')}_${attr_name1}`,
-                    "table_order_Response": `${String(attributeOrderMap.get(attr_name2) || 0).padStart(3, '0')}_${attr_name2}`,
-                    
-                    // we're calling the date function repeatedly here,
-                    // and we might get slightly different results each time,
-                    // and that's mostly ok since the computations were
-                    // in fact done at different times.
-                };
-
-                // Send the data to CODAP
-                try {
-                    await pluginHelper.createItems(correlationCase, multiVariateExtras.dataSetCorrelations.name, iCallback);
-                    multiVariateExtras.log(`Created correlation entry for ${attr_name1} vs ${attr_name2}`);
-                } catch (error) {
-                    multiVariateExtras.error(`Failed to create correlation entry for ${attr_name1} vs ${attr_name2}: ${error}`);
-                }
+                multiVariateExtras.log("Correlation table computation completed");
+            } catch (error) {
+                multiVariateExtras.error(`Error in computeCorrelationTable: ${error}`);
+                console.error("Full error details:", error);
             }
-        }
-
-        multiVariateExtras.log("Correlation table computation completed");
-    } catch (error) {
-        multiVariateExtras.error(`Error in computeCorrelationTable: ${error}`);
-        console.error("Full error details:", error);
-    }
-},
-
+        },
 
         /**
          * Moves a graph component to a new position
@@ -1174,16 +1071,12 @@ const multiVariateExtras = {
             }
         },
 
-
-
-         /**
-         * Compute Pearson correlation for actual values and missingness indicators using streaming computation
-         * @param {Object} allCases - Object containing all cases with their values
-         * @param {string} attr_name1 - Name of the first attribute
-         * @param {string} attr_name2 - Name of the second attribute
+        /**
+         * Compute Pearson correlation for actual values and missingness indicators
+         * @param {Array} data - Array of objects with x and y properties
          * @returns {Object} Object containing correlation results and counts
          */
-         onlinePearsonWithMissingCorr2: function(allCases, attr_name1, attr_name2) {
+        onlinePearsonWithMissingCorr: function(data) {
             // For actual (x, y) values
             let n = 0;
             let meanX = 0.0;
@@ -1204,14 +1097,9 @@ const multiVariateExtras = {
             let nxMissing = 0;
             let nyMissing = 0;
 
-            // Stream through all cases and compute correlation online
-            Object.values(allCases).forEach(aCase => {
-                const val1 = aCase.values[attr_name1];
-                const val2 = aCase.values[attr_name2];
-                
-                // Convert to numbers, handling various missing value formats
-                const x = (val1 === null || val1 === undefined || val1 === "") ? null : parseFloat(val1);
-                const y = (val2 === null || val2 === undefined || val2 === "") ? null : parseFloat(val2);
+            for (const point of data) {
+                const x = point.x;
+                const y = point.y;
 
                 // Create indicator variables (1 if missing, 0 if not missing)
                 const ixMissing = (x === null || x === undefined || x === "" || isNaN(x)) ? 1.0 : 0.0;
@@ -1242,7 +1130,7 @@ const multiVariateExtras = {
                     Sy += dy * (y - meanY);
                     Sxy += dx * (y - meanY);
                 }
-            });
+            }
 
             // Final Pearson correlations
             const rXy = (Sx > 0 && Sy > 0) ? Sxy / Math.sqrt(Sx * Sy) : NaN;
@@ -1258,7 +1146,6 @@ const multiVariateExtras = {
                 totalCases: nInd
             };
         },
-
 
         /**
          * Compute confidence intervals for Pearson correlation coefficient using Fisher's z-transformation
@@ -1355,297 +1242,6 @@ const multiVariateExtras = {
             const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
 
             return sign * y;
-        },
-
-        /**
-         * Compute eta-squared correlation for categorical predictor and numeric response attributes with missingness correlation
-         * @param {Object} allCases - Object containing all cases with their values
-         * @param {string} attr_name1 - Name of the first attribute (categorical)
-         * @param {string} attr_name2 - Name of the second attribute (numeric)
-         * @returns {Object} Object containing correlation results and counts
-         */
-        etaSquaredWithMissingCorr: function(allCases, attr_name1, attr_name2) {
-            // TODO: The desired eta-squared computation on the data itself isn't implemented at all yet.
-            // For now, we only compute the missingness correlation.
-            
-            // etaSquared is analogous to R^2 in linear regression, but other parts of the correlation matrix are little-r rather than R^2, so perhaps we should report sqrt(etaSquared) so it's more comparable to r. We'll think about this more.
-
-            // For binary indicators (ix_missing, iy_missing)
-            let nInd = 0;
-            let meanIxMissing = 0.0;
-            let meanIyMissing = 0.0;
-            let SixMissing = 0.0;
-            let SiyMissing = 0.0;
-            let SixyMissing = 0.0;
-
-            // Count of missing x and y individually
-            let nxMissing = 0;
-            let nyMissing = 0;
-
-            // Stream through all cases and compute missingness correlation online
-            Object.values(allCases).forEach(aCase => {
-                const val1 = aCase.values[attr_name1];
-                const val2 = aCase.values[attr_name2];
-                
-                // in etaSquared computation, the predictor variable is categorical, so we can't use parseFloat
-                const x = (val1 === null || val1 === undefined || val1 === "") ? null : val1;
-                // TODO: should "" count as missing, or as its own category? Right now we're counting it as missing.
-                // Ideally we'd run the computation both ways and report both!
-
-                // in etaSquared computation, the response variable is numeric, so we can use parseFloat.
-                // Convert to numbers, handling various missing value formats
-                const y = (val2 === null || val2 === undefined || val2 === "") ? null : parseFloat(val2);
-
-                // Create indicator variables (1 if missing, 0 if not missing).
-                // We're using isNaN on y since (for etaSquared)y is numeric,
-                // but not using isNaN on x since (for etaSquared) x is categorical.
-                const ixMissing = (x === null || x === undefined || x === "") ? 1.0 : 0.0;
-                const iyMissing = (y === null || y === undefined || y === "" || isNaN(y)) ? 1.0 : 0.0;
-
-                // Update counts of missing x and y
-                nxMissing += ixMissing;
-                nyMissing += iyMissing;
-
-                // Update statistics for binary indicators
-                nInd += 1;
-                const dxInd = ixMissing - meanIxMissing;
-                const dyInd = iyMissing - meanIyMissing;
-                meanIxMissing += dxInd / nInd;
-                meanIyMissing += dyInd / nInd;
-                SixMissing += dxInd * (ixMissing - meanIxMissing);
-                SiyMissing += dyInd * (iyMissing - meanIyMissing);
-                SixyMissing += dxInd * (iyMissing - meanIyMissing);
-            });
-
-            // Final missingness correlation
-            const rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
-
-            // n here is n_neithermissing (placeholder since we're not computing actual correlation yet)
-            const n = 0;
-
-            return {
-                correlation: -999, // Placeholder value since eta-squared computation not implemented yet
-                nCompleteCases: n,
-                missingnessCorrelation: rIxIy,
-                nxMissing: nxMissing,
-                nyMissing: nyMissing,
-                totalCases: nInd
-            };
-        },
-
-        /**
-         * Compute Cramer's V correlation for categorical vs categorical attributes with missingness correlation
-         * @param {Object} allCases - Object containing all cases with their values
-         * @param {string} attr_name1 - Name of the first attribute (categorical)
-         * @param {string} attr_name2 - Name of the second attribute (categorical)
-         * @returns {Object} Object containing correlation results and counts
-         */
-        CramersVWithMissingCorr: function(allCases, attr_name1, attr_name2) {
-            // TODO: The desired Cramer's V computation on the data itself isn't implemented at all yet.
-            // For now, we only compute the missingness correlation.
-            // Cramer's V is sometimes referred to as Cramer's phi and denoted as phi_c (citation: wikipedia)
-            // This computation uses only the factor levels seen in the data, which might be fewer than the actual number of possible factor levels intended. For example, if a categorical variable is day-of-week with 7 possible levels, but only 4 days occur in the data, the computation will use 4 instead of 7 in the Cramer's V formula.
-
-            // For binary indicators (ix_missing, iy_missing)
-            let nInd = 0;
-            let meanIxMissing = 0.0;
-            let meanIyMissing = 0.0;
-            let SixMissing = 0.0;
-            let SiyMissing = 0.0;
-            let SixyMissing = 0.0;
-
-            // Count of missing x and y individually
-            let nxMissing = 0;
-            let nyMissing = 0;
-
-            // Stream through all cases and compute missingness correlation online
-            Object.values(allCases).forEach(aCase => {
-                const val1 = aCase.values[attr_name1];
-                const val2 = aCase.values[attr_name2];
-                
-                // in Cramer's V computation, both variables are categorical, so we can't use parseFloat
-                const x = (val1 === null || val1 === undefined || val1 === "") ? null : val1;
-                const y = (val2 === null || val2 === undefined || val2 === "") ? null : val2;
-                // TODO: should "" count as missing, or as its own category? Right now we're counting it as missing.
-                // Ideally we'd run the computation both ways and report both!
-
-                // Create indicator variables (1 if missing, 0 if not missing)
-                const ixMissing = (x === null || x === undefined || x === "") ? 1.0 : 0.0;
-                const iyMissing = (y === null || y === undefined || y === "") ? 1.0 : 0.0;
-
-                // Update counts of missing x and y
-                nxMissing += ixMissing;
-                nyMissing += iyMissing;
-
-                // Update statistics for binary indicators
-                nInd += 1;
-                const dxInd = ixMissing - meanIxMissing;
-                const dyInd = iyMissing - meanIyMissing;
-                meanIxMissing += dxInd / nInd;
-                meanIyMissing += dyInd / nInd;
-                SixMissing += dxInd * (ixMissing - meanIxMissing);
-                SiyMissing += dyInd * (iyMissing - meanIyMissing);
-                SixyMissing += dxInd * (iyMissing - meanIyMissing);
-            });
-
-            // Final missingness correlation
-            const rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
-
-            // n here is n_neithermissing (placeholder since we're not computing actual correlation yet)
-            const n = 0;
-
-            return {
-                correlation: -999, // Placeholder value since Cramer's V computation not implemented yet
-                nCompleteCases: n,
-                missingnessCorrelation: rIxIy,
-                nxMissing: nxMissing,
-                nyMissing: nyMissing,
-                totalCases: nInd
-            };
-        },
-
-        /**
-         * Compute numeric-predict-categorical correlation with missingness correlation
-         * @param {Object} allCases - Object containing all cases with their values
-         * @param {string} attr_name1 - Name of the first attribute (numeric)
-         * @param {string} attr_name2 - Name of the second attribute (categorical)
-         * @returns {Object} Object containing correlation results and counts
-         */
-        NumericPredictCategoricalWithMissingCorr: function(allCases, attr_name1, attr_name2) {
-            // TODO: The desired numeric-predict-categorical computation on the data itself isn't implemented at all yet.
-            // For now, we only compute the missingness correlation.
-
-            // For binary indicators (ix_missing, iy_missing)
-            let nInd = 0;
-            let meanIxMissing = 0.0;
-            let meanIyMissing = 0.0;
-            let SixMissing = 0.0;
-            let SiyMissing = 0.0;
-            let SixyMissing = 0.0;
-
-            // Count of missing x and y individually
-            let nxMissing = 0;
-            let nyMissing = 0;
-
-            // Stream through all cases and compute missingness correlation online
-            Object.values(allCases).forEach(aCase => {
-                const val1 = aCase.values[attr_name1];
-                const val2 = aCase.values[attr_name2];
-                
-                // in NumericPredictCategorical computation, the predictor variable is numeric, so we can use parseFloat
-                const x = (val1 === null || val1 === undefined || val1 === "") ? null : parseFloat(val1);
-                // TODO: should "" count as missing, or as its own category? Right now we're counting it as missing.
-                // Ideally we'd run the computation both ways and report both!
-
-                // in NumericPredictCategorical computation, the response variable is categorical, so we can't use parseFloat
-                const y = (val2 === null || val2 === undefined || val2 === "") ? null : val2;
-
-                // Create indicator variables (1 if missing, 0 if not missing).
-                // We're using isNaN on x since (for NumericPredictCategorical) x is numeric,
-                // but not using isNaN on y since (for NumericPredictCategorical) y is categorical.
-                const ixMissing = (x === null || x === undefined || x === "" || isNaN(x)) ? 1.0 : 0.0;
-                const iyMissing = (y === null || y === undefined || y === "") ? 1.0 : 0.0;
-
-                // Update counts of missing x and y
-                nxMissing += ixMissing;
-                nyMissing += iyMissing;
-
-                // Update statistics for binary indicators
-                nInd += 1;
-                const dxInd = ixMissing - meanIxMissing;
-                const dyInd = iyMissing - meanIyMissing;
-                meanIxMissing += dxInd / nInd;
-                meanIyMissing += dyInd / nInd;
-                SixMissing += dxInd * (ixMissing - meanIxMissing);
-                SiyMissing += dyInd * (iyMissing - meanIyMissing);
-                SixyMissing += dxInd * (iyMissing - meanIyMissing);
-            });
-
-            // Final missingness correlation
-            const rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
-
-            // n here is n_neithermissing (placeholder since we're not computing actual correlation yet)
-            const n = 0;
-
-            return {
-                correlation: -999, // Placeholder value since numeric-predict-categorical computation not implemented yet
-                nCompleteCases: n,
-                missingnessCorrelation: rIxIy,
-                nxMissing: nxMissing,
-                nyMissing: nyMissing,
-                totalCases: nInd
-            };
-        },
-
-        /**
-         * Compute missing correlation with missingness correlation
-         * @param {Object} allCases - Object containing all cases with their values
-         * @param {string} attr_name1 - Name of the first attribute
-         * @param {string} attr_name2 - Name of the second attribute
-         * @returns {Object} Object containing correlation results and counts
-         */
-        ComputeMissingCorr: function(allCases, attr_name1, attr_name2) {
-            // TODO: The desired missing correlation computation on the data itself isn't implemented at all yet.
-            // For now, we only compute the missingness correlation.
-
-            // For binary indicators (ix_missing, iy_missing)
-            let nInd = 0;
-            let meanIxMissing = 0.0;
-            let meanIyMissing = 0.0;
-            let SixMissing = 0.0;
-            let SiyMissing = 0.0;
-            let SixyMissing = 0.0;
-
-            // Count of missing x and y individually
-            let nxMissing = 0;
-            let nyMissing = 0;
-
-            // Stream through all cases and compute missingness correlation online
-            Object.values(allCases).forEach(aCase => {
-                const val1 = aCase.values[attr_name1];
-                const val2 = aCase.values[attr_name2];
-                
-                // in ComputeMissingCorr computation, variable types are unknown/fallback case
-                // We don't know if they're categorical or numeric, so we'll treat them as categorical to be safe
-                const x = (val1 === null || val1 === undefined || val1 === "") ? null : val1;
-                const y = (val2 === null || val2 === undefined || val2 === "") ? null : val2;
-                // TODO: should "" count as missing, or as its own category? Right now we're counting it as missing.
-                // Ideally we'd run the computation both ways and report both!
-
-                // Create indicator variables (1 if missing, 0 if not missing).
-                // Not using isNaN on either variable since we're treating them as categorical for safety.
-                const ixMissing = (x === null || x === undefined || x === "") ? 1.0 : 0.0;
-                const iyMissing = (y === null || y === undefined || y === "") ? 1.0 : 0.0;
-
-                // Update counts of missing x and y
-                nxMissing += ixMissing;
-                nyMissing += iyMissing;
-
-                // Update statistics for binary indicators
-                nInd += 1;
-                const dxInd = ixMissing - meanIxMissing;
-                const dyInd = iyMissing - meanIyMissing;
-                meanIxMissing += dxInd / nInd;
-                meanIyMissing += dyInd / nInd;
-                SixMissing += dxInd * (ixMissing - meanIxMissing);
-                SiyMissing += dyInd * (iyMissing - meanIyMissing);
-                SixyMissing += dxInd * (iyMissing - meanIyMissing);
-            });
-
-            // Final missingness correlation
-            const rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
-
-            // n here is n_neithermissing (placeholder since we're not computing actual correlation yet)
-            const n = 0;
-
-            return {
-                correlation: -999, // Placeholder value since missing correlation computation not implemented yet
-                nCompleteCases: n,
-                missingnessCorrelation: rIxIy,
-                nxMissing: nxMissing,
-                nyMissing: nyMissing,
-                totalCases: nInd
-            };
         },
     },
 
