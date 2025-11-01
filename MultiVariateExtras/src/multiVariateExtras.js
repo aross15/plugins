@@ -784,6 +784,7 @@ const multiVariateExtras = {
                 const selectedLegendAttribute = legendAttributeDropdown ? legendAttributeDropdown.value : null;
 
                 multiVariateExtras.log(`Creating plot matrix with ${attributes.length} attributes: ${attributes.map(a => a.name).join(', ')} with useSegmentedBars=${useSegmentedBars}, legendAttribute=${selectedLegendAttribute}`);
+                multiVariateExtras.log(`Bill Finzer emailed (2025-09-30): When you specify a height, the value you specify /includes/ the title bar height.`);
 
                 // Calculate layout for the plot matrix
                 const numAttributes = attributes.length;
@@ -932,6 +933,58 @@ const multiVariateExtras = {
                 
             } catch (error) {
                 multiVariateExtras.error(`Error deleting plot matrix graphs: ${error}`);
+            }
+        },
+
+        /**
+         * Adds least squares lines to scatterplots in the plot matrix
+         * @returns {Promise<void>}
+         */
+        addLeastSquaresLines: async function () {
+            if (!multiVariateExtras.datasetInfo || !multiVariateExtras.datasetInfo.name) {
+                multiVariateExtras.warn("No dataset selected for adding least squares lines");
+                return;
+            }
+
+            const datasetName = multiVariateExtras.datasetInfo.name;
+            const datasetTitle = multiVariateExtras.datasetInfo.title;
+            const graphs = multiVariateExtras.utilities.getCreatedGraphs(datasetName);
+            
+            if (!graphs || graphs.length === 0) {
+                multiVariateExtras.log(`No plot matrix graphs found for dataset: ${datasetTitle}`);
+                return;
+            }
+
+            multiVariateExtras.log(`Adding least squares lines to ${graphs.length} plot matrix graphs for dataset: ${datasetTitle}`);
+
+            try {
+                // Loop through the graphs to add least squares lines
+                for (const graphId of graphs) {
+                    // We could be careful to only add LSRL to scatterplots, but I'm not going to bother.
+                    // It's not a big deal if we attempt to add it to other types of graphs.
+                    multiVariateExtras.log(`Processing graph ${graphId} for least squares lines`);
+                    
+                    // Send API request to add LSRL (Least Squares Regression Line) adornment
+                    const message = {
+                        action: "create",
+                        resource: `component[${graphId}].adornment`,
+                        values: {
+                            type: "LSRL"
+                        }
+                    };
+                    
+                    const result = await codapInterface.sendRequest(message);
+                    if (result.success) {
+                        multiVariateExtras.log(`Successfully added least squares line to graph ${graphId}`);
+                    } else {
+                        multiVariateExtras.warn(`Failed to add least squares line to graph ${graphId}: ${result.error || 'unknown error'}`);
+                    }
+                }
+                
+                multiVariateExtras.log(`Completed processing ${graphs.length} graphs for least squares lines`);
+                
+            } catch (error) {
+                multiVariateExtras.error(`Error adding least squares lines to plot matrix graphs: ${error}`);
             }
         },
 
