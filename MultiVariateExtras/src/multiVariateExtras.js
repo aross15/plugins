@@ -1025,11 +1025,15 @@ const multiVariateExtras = {
                         yAxis = null; // No attribute on the y-axis for segmented bars, since we need the y-axis for 0%-100% scale.
                         legendAttr = attr2Name; // Use attr2 as "legend", which sets colors of cases/segments of bars.
                         // Note: We don't use the selected legend attribute for segmented bar charts
-                        // in v2 this could be: DG.BarChart DG.BarChartView
-                        // in v3 this could be: barChart BarChartModel BarChart [note exact capitalization]
-                        plotType = "DG.BarChart";  // or just "barChart"                        ?
-                        breakdownType = 1; // Percent scaling; or maybe need to say "percent" as a string?
-                        multiVariateExtras.log(`Creating0 segmented bar chart with x=${xAxis}, legend=${legendAttr}, plotType=${plotType}, breakdownType=${breakdownType}`);
+                        // For v3, use "barChart" (lowercase, no "DG.") and "percent" (string, not number)
+                        if (multiVariateExtras.codapVersion === "v3") {
+                            plotType = "barChart";  // v3 uses lowercase "barChart"
+                            breakdownType = "percent"; // v3 uses "percent" as a string
+                        } else {
+                            plotType = "DG.BarChart";  // v2 uses "DG.BarChart"
+                            breakdownType = 1; // v2 uses 1 for percent scaling
+                        }
+                        multiVariateExtras.log(`Creating segmented bar chart with x=${xAxis}, legend=${legendAttr}, plotType=${plotType}, breakdownType=${breakdownType} (v3=${multiVariateExtras.codapVersion === "v3"})`);
                     } 
                 }
 
@@ -1051,18 +1055,54 @@ const multiVariateExtras = {
                     multiVariateExtras.log(`thisGraphSegmentedBars= ${thisGraphSegmentedBars}`);
 
                     if (thisGraphSegmentedBars) {
-                        multiVariateExtras.log(`Attempting to modify chart, id= ${componentId}`);
+                        multiVariateExtras.log(`Attempting to configure segmented bar chart, id= ${componentId}`);
                         
-                        // Use the new modifyGraph function to set plotType and breakdownType
-                        const modificationResult = await connect.modifyGraph(componentId, {
-                            plotType: plotType,
-                            breakdownType: breakdownType
-                        });
-                        
-                        if (modificationResult.success) {
-                            multiVariateExtras.log(`Successfully modified graph ${componentId} to use segmented bars`);
+                        // For v3, use API messages similar to how LSRL is added
+                        if (multiVariateExtras.codapVersion === "v3") {
+                            // First, ensure the plot type is barChart (fuse dots into bars)
+                            const plotTypeMessage = {
+                                action: "update",
+                                resource: `component[${componentId}]`,
+                                values: {
+                                    plotType: "barChart",
+                                    plotClass: "barChart"
+                                }
+                            };
+                            
+                            const plotTypeResult = await codapInterface.sendRequest(plotTypeMessage);
+                            if (plotTypeResult.success) {
+                                multiVariateExtras.log(`Successfully set plot type to barChart for graph ${componentId}`);
+                            } else {
+                                multiVariateExtras.warn(`Failed to set plot type for graph ${componentId}: ${plotTypeResult.error || 'unknown error'}`);
+                            }
+                            
+                            // Then, set breakdownType to percent
+                            const breakdownTypeMessage = {
+                                action: "update",
+                                resource: `component[${componentId}]`,
+                                values: {
+                                    breakdownType: "percent"
+                                }
+                            };
+                            
+                            const breakdownResult = await codapInterface.sendRequest(breakdownTypeMessage);
+                            if (breakdownResult.success) {
+                                multiVariateExtras.log(`Successfully set breakdownType to percent for graph ${componentId}`);
+                            } else {
+                                multiVariateExtras.warn(`Failed to set breakdownType for graph ${componentId}: ${breakdownResult.error || 'unknown error'}`);
+                            }
                         } else {
-                            multiVariateExtras.warn(`Failed to modify graph ${componentId}: ${modificationResult.error || 'unknown error'}`);
+                            // For v2, use the modifyGraph function
+                            const modificationResult = await connect.modifyGraph(componentId, {
+                                plotType: plotType,
+                                breakdownType: breakdownType
+                            });
+                            
+                            if (modificationResult.success) {
+                                multiVariateExtras.log(`Successfully modified graph ${componentId} to use segmented bars`);
+                            } else {
+                                multiVariateExtras.warn(`Failed to modify graph ${componentId}: ${modificationResult.error || 'unknown error'}`);
+                            }
                         }
                     }
                     return componentId;
