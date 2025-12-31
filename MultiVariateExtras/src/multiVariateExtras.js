@@ -510,8 +510,15 @@ const multiVariateExtras = {
 
                 multiVariateExtras.log(`Computing correlations for ${visibleAttributes.length} visible attributes: ${visibleAttributes.map(a => a.name).join(', ')}`);
 
-                // Loop through visible attributes and compute correlations
                 const nCases = await connect.getItemCountFrom(multiVariateExtras.datasetInfo.name);
+                
+                // Get all cases
+                multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.title}`);
+                const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
+                multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
+    
+
+                // Loop through visible attributes and compute correlations
                 
                 for (const attr1 of visibleAttributes) {
                     const attr_name1 = attr1["name"];
@@ -534,29 +541,9 @@ const multiVariateExtras = {
                         if (essentialType1 === "EssentiallyNumeric" && essentialType2 === "EssentiallyNumeric") {
                             correlationType = "Pearson";
                             
-                            try {
-                                // Get all cases and extract numeric values for correlation
-                                multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.title}`);
-                                const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
-                                multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
-                                
-                                const bivariateData = [];
-                                
-                                Object.values(allCases).forEach(aCase => {
-                                    const val1 = aCase.values[attr_name1];
-                                    const val2 = aCase.values[attr_name2];
-                                    
-                                    // Convert to numbers, handling various missing value formats
-                                    const num1 = (val1 === null || val1 === undefined || val1 === "") ? null : parseFloat(val1);
-                                    const num2 = (val2 === null || val2 === undefined || val2 === "") ? null : parseFloat(val2);
-                                    
-                                    bivariateData.push({x: num1, y: num2});
-                                });
-                                
-                                multiVariateExtras.log(`Created ${bivariateData.length} data points for correlation`);
-                                
+                            try { //  compute correlation using streaming computation
                                 // Use our custom correlation function that also computes missingness correlation
-                                const correlationResults = multiVariateExtras.correlationUtils.onlinePearsonWithMissingCorr(bivariateData);
+                                const correlationResults = multiVariateExtras.correlationUtils.onlinePearsonWithMissingCorr2(allCases, attr_name1, attr_name2);
                                 
                                 correlationResult = correlationResults.correlation;
                                 nCompleteCases = correlationResults.nCompleteCases;
@@ -1164,12 +1151,14 @@ const multiVariateExtras = {
             }
         },
 
-        /**
-         * Compute Pearson correlation for actual values and missingness indicators
-         * @param {Array} data - Array of objects with x and y properties
+         /**
+         * Compute Pearson correlation for actual values and missingness indicators using streaming computation
+         * @param {Object} allCases - Object containing all cases with their values
+         * @param {string} attr_name1 - Name of the first attribute
+         * @param {string} attr_name2 - Name of the second attribute
          * @returns {Object} Object containing correlation results and counts
          */
-        onlinePearsonWithMissingCorr: function(data) {
+         onlinePearsonWithMissingCorr2: function(allCases, attr_name1, attr_name2) {
             // For actual (x, y) values
             let n = 0;
             let meanX = 0.0;
@@ -1190,9 +1179,14 @@ const multiVariateExtras = {
             let nxMissing = 0;
             let nyMissing = 0;
 
-            for (const point of data) {
-                const x = point.x;
-                const y = point.y;
+            // Stream through all cases and compute correlation online
+            Object.values(allCases).forEach(aCase => {
+                const val1 = aCase.values[attr_name1];
+                const val2 = aCase.values[attr_name2];
+                
+                // Convert to numbers, handling various missing value formats
+                const x = (val1 === null || val1 === undefined || val1 === "") ? null : parseFloat(val1);
+                const y = (val2 === null || val2 === undefined || val2 === "") ? null : parseFloat(val2);
 
                 // Create indicator variables (1 if missing, 0 if not missing)
                 const ixMissing = (x === null || x === undefined || x === "" || isNaN(x)) ? 1.0 : 0.0;
@@ -1223,7 +1217,7 @@ const multiVariateExtras = {
                     Sy += dy * (y - meanY);
                     Sxy += dx * (y - meanY);
                 }
-            }
+            });
 
             // Final Pearson correlations
             const rXy = (Sx > 0 && Sy > 0) ? Sxy / Math.sqrt(Sx * Sy) : NaN;
