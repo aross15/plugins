@@ -522,5 +522,228 @@ const MVE_stat_utils = {
             totalCases: nInd
         };
     },
+
+    /* ************************ Log-gamma, incomplete beta, and F-CDF code ************************ */
+    /* all code in this section was written by ChatGPT on 2026-01-01;
+     * I haven't checked it yet.
+     * It's based on a prompt that had a Python version, but that
+     * didn't include the p-value computation. */
+    /**
+     * Compute the natural logarithm of the gamma function using Lanczos approximation
+     * @param {number} z - Input value
+     * @returns {number} ln(Γ(z))
+     * @see https://en.wikipedia.org/wiki/Lanczos_approximation
+     */
+    logGamma: function(z) {
+        const p = [
+            676.5203681218851,
+            -1259.1392167224028,
+            771.32342877765313,
+            -176.61502916214059,
+            12.507343278686905,
+            -0.13857109526572012,
+            9.9843695780195716e-6,
+            1.5056327351493116e-7
+        ];
+
+        if (z < 0.5) {
+            return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - this.logGamma(1 - z);
+        }
+
+        z -= 1;
+        let x = 0.99999999999980993;
+        for (let i = 0; i < p.length; i++) {
+            x += p[i] / (z + i + 1);
+        }
+
+        const t = z + p.length - 0.5;
+        return (
+            0.5 * Math.log(2 * Math.PI) +
+            (z + 0.5) * Math.log(t) -
+            t +
+            Math.log(x)
+        );
+    },
+
+    /**
+     * Compute continued fraction expansion for incomplete beta function
+     * @param {number} x - Upper limit of integration
+     * @param {number} a - First shape parameter
+     * @param {number} b - Second shape parameter
+     * @returns {number} Continued fraction value
+     */
+    betaContinuedFraction: function(x, a, b) {
+        const MAX_ITER = 200;
+        const EPS = 1e-10;
+
+        let am = 1;
+        let bm = 1;
+        let az = 1;
+        let qab = a + b;
+        let qap = a + 1;
+        let qam = a - 1;
+        let bz = 1 - (qab * x) / qap;
+
+        for (let m = 1; m <= MAX_ITER; m++) {
+            const em = m;
+            const tem = em + em;
+
+            let d =
+                (em * (b - em) * x) /
+                ((qam + tem) * (a + tem));
+            let ap = az + d * am;
+            let bp = bz + d * bm;
+
+            d =
+                (-(a + em) * (qab + em) * x) /
+                ((a + tem) * (qap + tem));
+            let app = ap + d * az;
+            let bpp = bp + d * bz;
+
+            am = ap / bpp;
+            bm = bp / bpp;
+            az = app / bpp;
+            bz = 1;
+
+            if (Math.abs(app - az) < EPS * Math.abs(az)) {
+                break;
+            }
+        }
+
+        return az;
+    },
+
+    /**
+     * Compute the regularized incomplete beta function I_x(a,b)
+     * @param {number} x - Upper limit of integration (0 <= x <= 1)
+     * @param {number} a - First shape parameter
+     * @param {number} b - Second shape parameter
+     * @returns {number} Regularized incomplete beta function value
+     */
+    regularizedIncompleteBeta: function(x, a, b) {
+        if (x <= 0) return 0;
+        if (x >= 1) return 1;
+
+        const bt =
+            Math.exp(
+                this.logGamma(a + b) -
+                this.logGamma(a) -
+                this.logGamma(b) +
+                a * Math.log(x) +
+                b * Math.log(1 - x)
+            );
+
+        // Use symmetry to improve convergence
+        if (x < (a + 1) / (a + b + 2)) {
+            return (bt * this.betaContinuedFraction(x, a, b)) / a;
+        } else {
+            return 1 - (bt * this.betaContinuedFraction(1 - x, b, a)) / b;
+        }
+    },
+
+    /**
+     * Compute the cumulative distribution function of the F-distribution
+     * @param {number} x - F-statistic value
+     * @param {number} d1 - Numerator degrees of freedom
+     * @param {number} d2 - Denominator degrees of freedom
+     * @returns {number} P(F <= x) where F follows F(d1, d2) distribution
+     */
+    fCDF: function(x, d1, d2) {
+        if (x <= 0) return 0;
+        if (d1 <= 0 || d2 <= 0) return NaN;
+
+        const z = (d1 * x) / (d1 * x + d2);
+        return this.regularizedIncompleteBeta(z, d1 / 2, d2 / 2);
+    },
+
+    /**
+     * Compute a one-way ANOVA table from summary statistics with protection against divide-by-zero.
+     * Includes p-value computation via an F-CDF approximation.
+     * 
+     * Since this code will get called repeatedly by the correlation-matrix code,
+     * and due to missing values in the data we could end up with data that ANOVA can't work on,
+     * we want to silently handle any weird data by just returning NaN and not throw a warning or error.
+     * 
+     * Why presume that n_i not n_i - 1 was used for variances? To avoid divide-by-zero in the calling code
+     * if it was computing the variance of just one value.
+     * We're just going to multiply by n_i anyway so it doesn't matter if the unbiased version is used.
+     * We could have accepted sum-of-squares instead of variance, but I like thinking about variance
+     * more than thinking about sum-of-squares.
+     *
+     * @param {number[]} counts - Group sample sizes (length k)
+     * @param {number[]} means - Group means (length k)
+     * @param {number[]} variances - Group variances, using denominator n_i (not n_i - 1)
+     * @returns {Object[]} Array of ANOVA table rows similar to python pingouin.anova.
+     *                     Each row contains Source, SS, DF, MS, F, p, and n2 properties.
+     *                     First row is "Between" groups, second row is "Within" groups.
+     */
+    computeANOVAFromSummary: function(counts, means, variances) {
+        const sum = arr => arr.reduce((a, b) => a + b, 0);
+        const zipMap = (a, b, fn) => a.map((x, i) => fn(x, b[i]));
+        const safeDivide = (num, den) => (den === 0 ? NaN : num / den);
+
+        const N_total = sum(counts);
+        const k = counts.length;
+
+        // ---------- Core ANOVA quantities ----------
+
+        const mean_grand = safeDivide(
+            sum(zipMap(counts, means, (n, m) => n * m)),
+            N_total
+        );
+
+        const SS_between = isNaN(mean_grand)
+            ? NaN
+            : sum(
+                zipMap(counts, means, (n, m) =>
+                    n * Math.pow(m - mean_grand, 2)
+                )
+            );
+
+        const SS_within = sum(
+            zipMap(counts, variances, (n, v) => n * v)
+        );
+
+        const SS_total =
+            isNaN(SS_between) ? NaN : SS_between + SS_within;
+
+        const DF_between = k - 1;
+        const DF_within = N_total - k;
+
+        const MS_between = safeDivide(SS_between, DF_between);
+        const MS_within = safeDivide(SS_within, DF_within);
+
+        const F = safeDivide(MS_between, MS_within);
+        const eta_squared = safeDivide(SS_between, SS_total);
+
+        // ---------- F-distribution p-value ----------
+
+        const p_value =
+            isNaN(F) || F < 0
+                ? NaN
+                : 1 - this.fCDF(F, DF_between, DF_within);
+
+        return [
+            {
+                Source: "Between",
+                SS: SS_between,
+                DF: DF_between,
+                MS: MS_between,
+                F: F,
+                p: p_value,
+                n2: eta_squared
+            },
+            {
+                Source: "Within",
+                SS: SS_within,
+                DF: DF_within,
+                MS: MS_within,
+                F: NaN,
+                p: NaN,
+                n2: NaN
+            }
+        ];
+    },
+    /* ************************ end of ChatGPT-written code from 2026-01-01 ************************ */
 };
 
