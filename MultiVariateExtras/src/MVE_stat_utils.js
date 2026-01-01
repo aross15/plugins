@@ -233,17 +233,16 @@ const MVE_stat_utils = {
     },
 
     /**
-     * Compute eta-squared correlation for categorical predictor and numeric response attributes with missingness correlation
+     * Compute eta-squared correlation (but return eta) for categorical predictor and numeric response attributes with missingness correlation
      * @param {Object} allCases - Object containing all cases with their values
      * @param {string} attr_name1 - Name of the first attribute (categorical)
      * @param {string} attr_name2 - Name of the second attribute (numeric)
      * @returns {Object} Object containing correlation results and counts
      */
     etaSquaredWithMissingCorr: function(allCases, attr_name1, attr_name2) {
-        // TODO: The desired eta-squared computation on the data itself isn't implemented at all yet.
-        // For now, we only compute the missingness correlation.
-        
         // etaSquared is analogous to R^2 in linear regression, but other parts of the correlation matrix are little-r rather than R^2, so perhaps we should report sqrt(etaSquared) so it's more comparable to r. We'll think about this more.
+
+        const special_missing_category = "special_missing_category";
 
         // For binary indicators (ix_missing, iy_missing)
         let nInd = 0;
@@ -257,15 +256,20 @@ const MVE_stat_utils = {
         let nxMissing = 0;
         let nyMissing = 0;
 
-        // Stream through all cases and compute missingness correlation online
+        // Per-category statistics for ANOVA computation
+        // Map from category string to {count, mean, S} where:
+        // - count: number of valid y values in this category
+        // - mean: running mean (updated online using Welford's algorithm)
+        // - S: sum of squared deviations (for variance computation, updated online)
+        const categoryStats = new Map();
+
+        // Stream through all cases and compute missingness correlation online, and accumulate per-category stats
         Object.values(allCases).forEach(aCase => {
             const val1 = aCase.values[attr_name1];
             const val2 = aCase.values[attr_name2];
             
             // in etaSquared computation, the predictor variable is categorical, so we can't use parseFloat
             const x = (val1 === null || val1 === undefined || val1 === "") ? null : val1;
-            // TODO: should "" count as missing, or as its own category? Right now we're counting it as missing.
-            // Ideally we'd run the computation both ways and report both!
 
             // in etaSquared computation, the response variable is numeric, so we can use parseFloat.
             // Convert to numbers, handling various missing value formats
@@ -290,17 +294,85 @@ const MVE_stat_utils = {
             SixMissing += dxInd * (ixMissing - meanIxMissing);
             SiyMissing += dyInd * (iyMissing - meanIyMissing);
             SixyMissing += dxInd * (iyMissing - meanIyMissing);
+
+            // Update per-category statistics for ANOVA (only if y is not missing)
+            if (iyMissing === 0.0) {
+                // Determine category: use special_missing_category if x is missing, otherwise use x value
+                const category = (ixMissing === 1.0) ? special_missing_category : x;
+
+                // Initialize category stats if not already present
+                if (!categoryStats.has(category)) {
+                    categoryStats.set(category, { count: 0, mean: 0.0, S: 0.0 });
+                }
+
+                const stats = categoryStats.get(category);
+                stats.count += 1;
+                const dy = y - stats.mean;
+                stats.mean += dy / stats.count;
+                stats.S += dy * (y - stats.mean);
+            }
         });
 
         // Final missingness correlation
         const rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
 
-        // n here is n_neithermissing (placeholder since we're not computing actual correlation yet)
-        const n = 0;
+        // Convert category stats to arrays for computeANOVAFromSummary
+        // Compute variance for each category: variance = S / count (using denominator n_i, not n_i-1)
+        const categories = Array.from(categoryStats.keys());
+        const counts = categories.map(cat => categoryStats.get(cat).count);
+        const means = categories.map(cat => categoryStats.get(cat).mean);
+        const variances = categories.map(cat => {
+            const stats = categoryStats.get(cat);
+            return stats.count > 0 ? stats.S / stats.count : 0.0;
+        });
+
+        // Compute ANOVA excluding special_missing_category
+        const categoriesExcludingMissing = categories.filter(cat => cat !== special_missing_category);
+        const countsExcludingMissing = categoriesExcludingMissing.map(cat => categoryStats.get(cat).count);
+        const meansExcludingMissing = categoriesExcludingMissing.map(cat => categoryStats.get(cat).mean);
+        const variancesExcludingMissing = categoriesExcludingMissing.map(cat => {
+            const stats = categoryStats.get(cat);
+            return stats.count > 0 ? stats.S / stats.count : 0.0;
+        });
+
+        // Call computeANOVAFromSummary twice
+        let correlation = NaN;
+        let p_value = NaN;
+        let correl_incl_missing = NaN;
+        let p_incl_missing = NaN;
+        let nCompleteCases = 0;
+
+        // First call: include all categories (including special_missing_category)
+        // Check that we have at least one category and at least one complete case before running ANOVA
+        // (sum of all counts must be > 0 to avoid dividing by zero)
+        if (counts.length > 0 && counts.reduce((a, b) => a + b, 0) > 0) {
+            const anovaResultIncl = this.computeANOVAFromSummary(counts, means, variances);
+            const betweenRowIncl = anovaResultIncl.find(row => row.Source === "Between");
+            if (betweenRowIncl && !isNaN(betweenRowIncl.n2) && betweenRowIncl.n2 >= 0) {
+                correl_incl_missing = Math.sqrt(betweenRowIncl.n2);
+                p_incl_missing = betweenRowIncl.p;
+            }
+        }
+
+        // Second call: exclude special_missing_category
+        // Check that we have at least one category and at least one complete case before running ANOVA
+        // (sum of all counts must be > 0 to avoid dividing by zero)
+        if (countsExcludingMissing.length > 0 && countsExcludingMissing.reduce((a, b) => a + b, 0) > 0) {
+            const anovaResultExcl = this.computeANOVAFromSummary(countsExcludingMissing, meansExcludingMissing, variancesExcludingMissing);
+            const betweenRowExcl = anovaResultExcl.find(row => row.Source === "Between");
+            if (betweenRowExcl && !isNaN(betweenRowExcl.n2) && betweenRowExcl.n2 >= 0) {
+                correlation = Math.sqrt(betweenRowExcl.n2);
+                p_value = betweenRowExcl.p;
+                nCompleteCases = countsExcludingMissing.reduce((a, b) => a + b, 0);
+            }
+        }
 
         return {
-            correlation: -999, // Placeholder value since eta-squared computation not implemented yet
-            nCompleteCases: n,
+            correlation: correlation,
+            p_value: p_value,
+            correl_incl_missing: correl_incl_missing,
+            p_incl_missing: p_incl_missing,
+            nCompleteCases: nCompleteCases,
             missingnessCorrelation: rIxIy,
             nxMissing: nxMissing,
             nyMissing: nyMissing,

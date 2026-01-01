@@ -535,6 +535,8 @@ const multiVariateExtras = {
                         let CI_low95 = null;
                         let CI_high95 = null;
                         let p_value = null;
+                        let correl_incl_missing = null;
+                        let p_incl_missing = null;
 
                         // Map attribute types to essential categories
                         const essentialType1 = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr1["type"]);
@@ -576,6 +578,9 @@ const multiVariateExtras = {
                                 const correlationResults = multiVariateExtras.correlationUtils.etaSquaredWithMissingCorr(allCases, attr_name1, attr_name2);
                                 
                                 correlationResult = correlationResults.correlation;
+                                p_value = correlationResults.p_value;
+                                correl_incl_missing = correlationResults.correl_incl_missing;
+                                p_incl_missing = correlationResults.p_incl_missing;
                                 nCompleteCases = correlationResults.nCompleteCases;
                                 nBlanks1_actual = correlationResults.nxMissing;
                                 nBlanks2_actual = correlationResults.nyMissing;
@@ -657,6 +662,8 @@ const multiVariateExtras = {
                             "CI_low95": CI_low95,
                             "CI_high95": CI_high95,
                             "p_value": p_value,
+                            "correl_incl_missing": correl_incl_missing,
+                            "p_incl_missing": p_incl_missing,
                             "date": new Date().toISOString(),
                             "type1": attr1["type"],
                             "unit1": attr1["unit"] || "",
@@ -1229,6 +1236,8 @@ const multiVariateExtras = {
                     {name: "CI_low95", type: 'numeric', description: "low end of naive 95% confidence interval on correlation value"},
                     {name: "CI_high95", type: 'numeric', description: "high end of naive 95% confidence interval on correlation value"},
                     {name: "p_value", type: 'numeric', description: "p-value for naive hypothesis test on correlation value"},
+                    {name: "correl_incl_missing", type: 'numeric', precision: 8, description: "correlation coefficient including missing predictor category"},
+                    {name: "p_incl_missing", type: 'numeric', description: "p-value for correlation including missing predictor category"},
                     {name: "date", type: 'categorical', description: "date and time summary done"},
                     {name: "type1", type: 'categorical', description: "type of the first attribute"},
                     {name: "unit1", type: 'categorical', description: "unit of the first attribute"},
