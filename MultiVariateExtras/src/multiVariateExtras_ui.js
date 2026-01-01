@@ -1,15 +1,15 @@
 /*
 ==========================================================================
 
- * Created by tim on 10/1/20.
+ * originally Created by tim on 10/1/20.
  
  
  ==========================================================================
 multiVariateExtras_ui in multiVariateExtras
 
-Author:   Tim Erickson
+Author:   originally Tim Erickson, modified by Andrew Ross, aross15@emich.edu
 
-Copyright (c) 2018 by The Concord Consortium, Inc. All rights reserved.
+Some portions Copyright (c) 2018 by The Concord Consortium, Inc. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

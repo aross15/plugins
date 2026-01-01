@@ -1,7 +1,7 @@
 /*
 ==========================================================================
 
- * Created by tim on 9/29/20.
+ * originally Created by tim on 9/29/20.
  
  
  ==========================================================================
@@ -9,7 +9,7 @@ multiVariateExtras in multiVariateExtras
 
 Author:   Andrew Ross, heavily based on Choosy code by Tim Erickson
 
-Copyright (c) 2018 by The Concord Consortium, Inc. All rights reserved.
+Some portions Copyright (c) 2018 by The Concord Consortium, Inc. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1281,7 +1281,7 @@ const multiVariateExtras = {
     },
 
     constants: {
-        version: '2025a',
+        version: '2026a',
         datasetSummaryEL: 'summaryInfo',
     },
 

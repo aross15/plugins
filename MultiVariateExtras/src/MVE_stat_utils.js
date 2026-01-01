@@ -9,9 +9,9 @@
  ==========================================================================
 MVE_stat_utils in MultiVariateExtras
 
-Author:   Andrew Ross, heavily based on Choosy code by Tim Erickson
+Author:   Andrew Ross, aross15@emich.edu
 
-Copyright (c) 2018 by The Concord Consortium, Inc. All rights reserved.
+Some portionsCopyright (c) 2018 by The Concord Consortium, Inc. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
