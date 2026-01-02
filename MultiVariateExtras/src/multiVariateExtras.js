@@ -572,10 +572,14 @@ const multiVariateExtras = {
                                 correlBlanks = null;
                             }
                         } else if (essentialType1 === "EssentiallyCategorical" && essentialType2 === "EssentiallyNumeric") {
-                            correlationType = "etaSquared"; // definitely lowercase eta (which looks like an n), not uppercase Eta (which looks like an H)
+                            correlationType = "eta"; // definitely lowercase eta (which looks like an n), not uppercase Eta (which looks like an H)
+                            // Also, we report eta rather than etaSquared aka n^2, 
+                            // since eta^2 is like R^2 (is exactly R^2 for 2 predictor categories)
+                            // so sqrt(eta^2) is roughly analogous to Pearson correlation r.
+                            // Though eta can't be negative like r can be.
                             
                             try {
-                                const correlationResults = multiVariateExtras.correlationUtils.etaSquaredWithMissingCorr(allCases, attr_name1, attr_name2);
+                                const correlationResults = multiVariateExtras.correlationUtils.etaWithMissingCorr(allCases, attr_name1, attr_name2);
                                 
                                 correlationResult = correlationResults.correlation;
                                 p_value = correlationResults.p_value;

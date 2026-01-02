@@ -239,7 +239,7 @@ const MVE_stat_utils = {
      * @param {string} attr_name2 - Name of the second attribute (numeric)
      * @returns {Object} Object containing correlation results and counts
      */
-    etaSquaredWithMissingCorr: function(allCases, attr_name1, attr_name2) {
+    etaWithMissingCorr: function(allCases, attr_name1, attr_name2) {
         // etaSquared is analogous to R^2 in linear regression, but other parts of the correlation matrix are little-r rather than R^2, so perhaps we should report sqrt(etaSquared) so it's more comparable to r. We'll think about this more.
 
         const special_missing_category = "special_missing_category";
