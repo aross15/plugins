@@ -429,6 +429,8 @@ const MVE_stat_utils = {
         // Degrees of freedom: (rows - 1) * (cols - 1)
         const df = (rowCategories.length - 1) * (colCategories.length - 1);
 
+        console.log('[computeChiSquaredFromContingencyTable] chiSquared:', chiSquared, 'df:', df, 'n:', total, 'numRows:', rowCategories.length, 'numCols:', colCategories.length);
+
         return { chiSquared: chiSquared, df: df, n: total };
     },
 
@@ -578,9 +580,13 @@ const MVE_stat_utils = {
                     colCategoriesIncl.length
                 );
                 // Compute p-value: P(χ² >= observed) = 1 - CDF(observed)
+                const cdf_incl = this.chiSquaredCDF(chiSqResultIncl.chiSquared, chiSqResultIncl.df);
                 p_incl_missing = isNaN(chiSqResultIncl.chiSquared) || chiSqResultIncl.chiSquared < 0
                     ? NaN
-                    : 1 - this.chiSquaredCDF(chiSqResultIncl.chiSquared, chiSqResultIncl.df);
+                    : 1 - cdf_incl;
+                // Also compute using Wilson-Hilferty approximation for comparison
+                const p_incl_missing_WH = this.chiSquaredSF_WilsonHilferty(chiSqResultIncl.chiSquared, chiSqResultIncl.df);
+                console.log('[CramersVWithMissingCorr] INCLUDING missing - chiSquared:', chiSqResultIncl.chiSquared, 'df:', chiSqResultIncl.df, 'CDF:', cdf_incl, 'p-value gamma (1-CDF):', p_incl_missing, 'p-value Wilson-Hilferty:', p_incl_missing_WH);
             }
         }
 
@@ -599,9 +605,13 @@ const MVE_stat_utils = {
                     colCategoriesExcl.length
                 );
                 // Compute p-value: P(χ² >= observed) = 1 - CDF(observed)
+                const cdf_excl = this.chiSquaredCDF(chiSqResultExcl.chiSquared, chiSqResultExcl.df);
                 p_value = isNaN(chiSqResultExcl.chiSquared) || chiSqResultExcl.chiSquared < 0
                     ? NaN
-                    : 1 - this.chiSquaredCDF(chiSqResultExcl.chiSquared, chiSqResultExcl.df);
+                    : 1 - cdf_excl;
+                // Also compute using Wilson-Hilferty approximation for comparison
+                const p_value_WH = this.chiSquaredSF_WilsonHilferty(chiSqResultExcl.chiSquared, chiSqResultExcl.df);
+                console.log('[CramersVWithMissingCorr] EXCLUDING missing - chiSquared:', chiSqResultExcl.chiSquared, 'df:', chiSqResultExcl.df, 'CDF:', cdf_excl, 'p-value gamma (1-CDF):', p_value, 'p-value Wilson-Hilferty:', p_value_WH);
                 nCompleteCases = chiSqResultExcl.n;
             }
         }
@@ -917,6 +927,7 @@ const MVE_stat_utils = {
         const MAX_ITER = 200;
         const EPS = 1e-10;
         
+        let result;
         if (x < a + 1) {
             // Series expansion: P(a, x) = (x^a * e^(-x) / Γ(a)) * Σ_{k=0}^∞ x^k / (a * (a+1) * ... * (a+k))
             let sum = 1.0 / a;  // k=0 term: x^0 / a = 1/a
@@ -929,12 +940,16 @@ const MVE_stat_utils = {
                 }
             }
             const gamma_a = Math.exp(this.logGamma(a));
-            return Math.pow(x, a) * Math.exp(-x) * sum / gamma_a;
+            result = Math.pow(x, a) * Math.exp(-x) * sum / gamma_a;
+            console.log('[regularizedIncompleteGamma] using series expansion, a:', a, 'x:', x, 'x < a+1:', x < a + 1, 'result:', result);
         } else {
             // Use complement: Q(a, x) = 1 - P(a, x) and compute Q using continued fraction
             // For large x, Q converges faster
-            return 1 - this.regularizedIncompleteGammaUpper(a, x);
+            const q_value = this.regularizedIncompleteGammaUpper(a, x);
+            result = 1 - q_value;
+            console.log('[regularizedIncompleteGamma] using complement, a:', a, 'x:', x, 'x >= a+1:', x >= a + 1, 'Q(a,x):', q_value, 'P(a,x) = 1-Q:', result);
         }
+        return result;
     },
 
     /**
@@ -975,7 +990,9 @@ const MVE_stat_utils = {
         }
 
         const gamma_a = Math.exp(this.logGamma(a));
-        return Math.exp(-x) * Math.pow(x, a) * h / gamma_a;
+        const result = Math.exp(-x) * Math.pow(x, a) * h / gamma_a;
+        console.log('[regularizedIncompleteGammaUpper] a:', a, 'x:', x, 'result Q(a,x):', result);
+        return result;
     },
 
     /**
@@ -992,7 +1009,11 @@ const MVE_stat_utils = {
         // Chi-squared(df) = Gamma(df/2, 2)
         // P(χ² <= x) = P(Gamma(df/2, 2) <= x) = P(Gamma(df/2) <= x/2)
         // = regularizedIncompleteGamma(df/2, x/2)
-        return this.regularizedIncompleteGamma(df / 2, x / 2);
+        const a = df / 2;
+        const x_scaled = x / 2;
+        const cdf_value = this.regularizedIncompleteGamma(a, x_scaled);
+        console.log('[chiSquaredCDF] x:', x, 'df:', df, 'a (df/2):', a, 'x_scaled (x/2):', x_scaled, 'CDF:', cdf_value);
+        return cdf_value;
     },
     /* ************************ end of Cursor AI-written code from 2026-01-02 ************************ */
 
@@ -1087,5 +1108,34 @@ const MVE_stat_utils = {
         ];
     },
     /* ************************ end of ChatGPT-written code from 2026-01-01 ************************ */
-};
+    /* ************************ start of ChatGPT-written code from 2026-01-02 ************************ */
 
+    /**
+     * Standard normal CDF using erf
+     * @param {number} z - Z-score
+     * @returns {number} P(Z <= z)
+     */
+    normalCDF: function(z) {
+        return 0.5 * (1 + this.erf(z / Math.SQRT2));
+    },
+
+    /**
+     * Wilson–Hilferty approximation for chi-square survival function
+     * This approximates P(χ² >= x) for chi-squared distribution with df degrees of freedom
+     * @param {number} x - Chi-squared statistic value
+     * @param {number} df - Degrees of freedom
+     * @returns {number} P(χ² >= x) using Wilson-Hilferty approximation
+     */
+    chiSquaredSF_WilsonHilferty: function(x, df) {
+        if (x < 0) return 1;
+        if (df <= 0) return NaN;
+
+        const v = df;
+        const z =
+            (Math.pow(x / v, 1 / 3) - (1 - 2 / (9 * v))) /
+            Math.sqrt(2 / (9 * v));
+
+        return 1 - this.normalCDF(z);
+    },
+    /* ************************ end of ChatGPT-written code from 2026-01-02 ************************ */
+};
