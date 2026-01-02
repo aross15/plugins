@@ -381,6 +381,83 @@ const MVE_stat_utils = {
     },
 
     /**
+     * Compute chi-squared statistic from a contingency table
+     * @param {Map} contingencyTable - Map from (row, col) tuples to counts
+     * @param {Array} rowCategories - Array of row category values
+     * @param {Array} colCategories - Array of column category values
+     * @returns {Object} Object containing chi-squared statistic, degrees of freedom, and total count
+     */
+    computeChiSquaredFromContingencyTable: function(contingencyTable, rowCategories, colCategories) {
+        const safeDivide = (num, den) => (den === 0 ? NaN : num / den);
+
+        // Compute row and column totals
+        const rowTotals = new Map();
+        const colTotals = new Map();
+        let total = 0;
+        
+        // tally up the marginal frequencies of the row and column categories.
+        rowCategories.forEach(rowCat => {
+            rowTotals.set(rowCat, 0);
+            colCategories.forEach(colCat => {
+                const count = contingencyTable.get(`${rowCat}|${colCat}`) || 0;
+                rowTotals.set(rowCat, rowTotals.get(rowCat) + count);
+                if (!colTotals.has(colCat)) {
+                    colTotals.set(colCat, 0);
+                }
+                colTotals.set(colCat, colTotals.get(colCat) + count);
+                total += count;
+            });
+        });
+
+        if (total === 0) {
+            return { chiSquared: NaN, df: NaN, n: 0 };
+        }
+
+        // Compute chi-squared statistic: Σ (O - E)² / E
+        let chiSquared = 0;
+        rowCategories.forEach(rowCat => {
+            colCategories.forEach(colCat => {
+                const observed = contingencyTable.get(`${rowCat}|${colCat}`) || 0;
+                const expected = safeDivide(rowTotals.get(rowCat) * colTotals.get(colCat), total);
+                if (expected > 0) {
+                    const diff = observed - expected;
+                    chiSquared += (diff * diff) / expected;
+                }
+            });
+        });
+
+        // Degrees of freedom: (rows - 1) * (cols - 1)
+        const df = (rowCategories.length - 1) * (colCategories.length - 1);
+
+        return { chiSquared: chiSquared, df: df, n: total };
+    },
+
+    /**
+     * Compute Cramer's V from chi-squared statistic
+     * Cramer's V = sqrt(chi² / (n * min(r-1, c-1)))
+     * where r is number of rows and c is number of columns
+     * @param {number} chiSquared - Chi-squared statistic
+     * @param {number} n - Total sample size
+     * @param {number} numRows - Number of row categories
+     * @param {number} numCols - Number of column categories
+     * @returns {number} Cramer's V value (0 to 1)
+     */
+    computeCramersV: function(chiSquared, n, numRows, numCols) {
+        if (isNaN(chiSquared) || n <= 0 || numRows < 2 || numCols < 2) {
+            return NaN;
+        }
+        const minDim = Math.min(numRows - 1, numCols - 1);
+        if (minDim <= 0) {
+            return NaN;
+        }
+        const denominator = n * minDim;
+        if (denominator <= 0) {
+            return NaN;
+        }
+        return Math.sqrt(chiSquared / denominator);
+    },
+
+    /**
      * Compute Cramer's V correlation for categorical vs categorical attributes with missingness correlation
      * @param {Object} allCases - Object containing all cases with their values
      * @param {string} attr_name1 - Name of the first attribute (categorical)
@@ -388,10 +465,11 @@ const MVE_stat_utils = {
      * @returns {Object} Object containing correlation results and counts
      */
     CramersVWithMissingCorr: function(allCases, attr_name1, attr_name2) {
-        // TODO: The desired Cramer's V computation on the data itself isn't implemented at all yet.
-        // For now, we only compute the missingness correlation.
         // Cramer's V is sometimes referred to as Cramer's phi and denoted as phi_c (citation: wikipedia)
         // This computation uses only the factor levels seen in the data, which might be fewer than the actual number of possible factor levels intended. For example, if a categorical variable is day-of-week with 7 possible levels, but only 4 days occur in the data, the computation will use 4 instead of 7 in the Cramer's V formula.
+        // In the long run we might want to use bias-corrected Cramér’s V (Bergsma 2013),
+        // but for now we'll just use the simple version.
+        const special_missing_category = "special_missing_category";
 
         // For binary indicators (ix_missing, iy_missing)
         let nInd = 0;
@@ -405,7 +483,20 @@ const MVE_stat_utils = {
         let nxMissing = 0;
         let nyMissing = 0;
 
-        // Stream through all cases and compute missingness correlation online
+        // One way to structure a contingency table in Javascript is to have a map-of-maps,
+        // where the outer map key is the row category and the inner map key is the column category, or vice versa,
+        // and the value is the count of cases that have that row category and column category.
+        // That's similar to the "wider" format that the R tidyverse talks about.
+        // Instead here we'll use the "longer" format where we build a key from the predictor and response categories,
+        // and the value is the count of cases that have that predictor and response categories.
+        
+        // Contingency table: Map from "rowCat|colCat" to count
+        // We'll track all categories including the special missing category
+        const contingencyTableIncl = new Map();
+        const rowCategoriesSet = new Set();
+        const colCategoriesSet = new Set();
+
+        // Stream through all cases and compute missingness correlation online, and build contingency table
         Object.values(allCases).forEach(aCase => {
             const val1 = aCase.values[attr_name1];
             const val2 = aCase.values[attr_name2];
@@ -413,8 +504,6 @@ const MVE_stat_utils = {
             // in Cramer's V computation, both variables are categorical, so we can't use parseFloat
             const x = (val1 === null || val1 === undefined || val1 === "") ? null : val1;
             const y = (val2 === null || val2 === undefined || val2 === "") ? null : val2;
-            // TODO: should "" count as missing, or as its own category? Right now we're counting it as missing.
-            // Ideally we'd run the computation both ways and report both!
 
             // Create indicator variables (1 if missing, 0 if not missing)
             const ixMissing = (x === null || x === undefined || x === "") ? 1.0 : 0.0;
@@ -433,17 +522,96 @@ const MVE_stat_utils = {
             SixMissing += dxInd * (ixMissing - meanIxMissing);
             SiyMissing += dyInd * (iyMissing - meanIyMissing);
             SixyMissing += dxInd * (iyMissing - meanIyMissing);
+
+            // Build contingency table including missing values as special category
+            const rowCat = (ixMissing === 1.0) ? special_missing_category : x;
+            const colCat = (iyMissing === 1.0) ? special_missing_category : y;
+
+            rowCategoriesSet.add(rowCat);
+            colCategoriesSet.add(colCat);
+
+            const key = `${rowCat}|${colCat}`;
+            contingencyTableIncl.set(key, (contingencyTableIncl.get(key) || 0) + 1);
         });
 
         // Final missingness correlation
         const rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
 
-        // n here is n_neithermissing (placeholder since we're not computing actual correlation yet)
-        const n = 0;
+        // Convert sets to arrays for processing
+        const rowCategoriesIncl = Array.from(rowCategoriesSet);
+        const colCategoriesIncl = Array.from(colCategoriesSet);
+
+        // Build contingency table excluding missing values
+        const contingencyTableExcl = new Map();
+        const rowCategoriesExcl = rowCategoriesIncl.filter(cat => cat !== special_missing_category);
+        const colCategoriesExcl = colCategoriesIncl.filter(cat => cat !== special_missing_category);
+
+        rowCategoriesExcl.forEach(rowCat => {
+            colCategoriesExcl.forEach(colCat => {
+                const key = `${rowCat}|${colCat}`;
+                const count = contingencyTableIncl.get(key) || 0;
+                if (count > 0) {
+                    contingencyTableExcl.set(key, count);
+                }
+            });
+        });
+
+        // Compute chi-squared and Cramer's V including missing values
+        let correlation = NaN;
+        let p_value = NaN;
+        let correl_incl_missing = NaN;
+        let p_incl_missing = NaN;
+        let nCompleteCases = 0;
+
+        // First call: include all categories (including special_missing_category)
+        if (rowCategoriesIncl.length > 1 && colCategoriesIncl.length > 1) {
+            const chiSqResultIncl = this.computeChiSquaredFromContingencyTable(
+                contingencyTableIncl,
+                rowCategoriesIncl,
+                colCategoriesIncl
+            );
+            if (!isNaN(chiSqResultIncl.chiSquared) && chiSqResultIncl.n > 0) {
+                correl_incl_missing = this.computeCramersV(
+                    chiSqResultIncl.chiSquared,
+                    chiSqResultIncl.n,
+                    rowCategoriesIncl.length,
+                    colCategoriesIncl.length
+                );
+                // Compute p-value: P(χ² >= observed) = 1 - CDF(observed)
+                p_incl_missing = isNaN(chiSqResultIncl.chiSquared) || chiSqResultIncl.chiSquared < 0
+                    ? NaN
+                    : 1 - this.chiSquaredCDF(chiSqResultIncl.chiSquared, chiSqResultIncl.df);
+            }
+        }
+
+        // Second call: exclude special_missing_category
+        if (rowCategoriesExcl.length > 1 && colCategoriesExcl.length > 1) {
+            const chiSqResultExcl = this.computeChiSquaredFromContingencyTable(
+                contingencyTableExcl,
+                rowCategoriesExcl,
+                colCategoriesExcl
+            );
+            if (!isNaN(chiSqResultExcl.chiSquared) && chiSqResultExcl.n > 0) {
+                correlation = this.computeCramersV(
+                    chiSqResultExcl.chiSquared,
+                    chiSqResultExcl.n,
+                    rowCategoriesExcl.length,
+                    colCategoriesExcl.length
+                );
+                // Compute p-value: P(χ² >= observed) = 1 - CDF(observed)
+                p_value = isNaN(chiSqResultExcl.chiSquared) || chiSqResultExcl.chiSquared < 0
+                    ? NaN
+                    : 1 - this.chiSquaredCDF(chiSqResultExcl.chiSquared, chiSqResultExcl.df);
+                nCompleteCases = chiSqResultExcl.n;
+            }
+        }
 
         return {
-            correlation: -999, // Placeholder value since Cramer's V computation not implemented yet
-            nCompleteCases: n,
+            correlation: correlation,
+            p_value: p_value,
+            correl_incl_missing: correl_incl_missing,
+            p_incl_missing: p_incl_missing,
+            nCompleteCases: nCompleteCases,
             missingnessCorrelation: rIxIy,
             nxMissing: nxMissing,
             nyMissing: nyMissing,
@@ -727,6 +895,108 @@ const MVE_stat_utils = {
         const z = (d1 * x) / (d1 * x + d2);
         return this.regularizedIncompleteBeta(z, d1 / 2, d2 / 2);
     },
+    /* ************************ end of ChatGPT-written code from 2026-01-01 ************************ */
+    /* ************************ start of Cursor AI-written code from 2026-01-02 ************************ */
+
+    /**
+     * Compute the regularized incomplete gamma function P(a, x) = γ(a, x) / Γ(a)
+     * where γ(a, x) is the lower incomplete gamma function
+     * @param {number} a - Shape parameter
+     * @param {number} x - Upper limit
+     * @returns {number} Regularized incomplete gamma function value
+     */
+    regularizedIncompleteGamma: function(a, x) {
+        if (x < 0) return NaN;
+        if (x === 0) return 0;
+        if (a <= 0) return NaN;
+
+        // Use series expansion for small x, continued fraction for large x
+        // Series: P(a, x) = (x^a * e^(-x) / Γ(a)) * Σ_{k=0}^∞ x^k / (a * (a+1) * ... * (a+k))
+        // For large x: Use complement Q(a, x) = 1 - P(a, x) with continued fraction
+        
+        const MAX_ITER = 200;
+        const EPS = 1e-10;
+        
+        if (x < a + 1) {
+            // Series expansion: P(a, x) = (x^a * e^(-x) / Γ(a)) * Σ_{k=0}^∞ x^k / (a * (a+1) * ... * (a+k))
+            let sum = 1.0 / a;  // k=0 term: x^0 / a = 1/a
+            let term = 1.0 / a;
+            for (let k = 1; k < MAX_ITER; k++) {
+                term *= x / (a + k);  // term_k = term_{k-1} * x / (a + k)
+                sum += term;
+                if (Math.abs(term) < EPS * Math.abs(sum)) {
+                    break;
+                }
+            }
+            const gamma_a = Math.exp(this.logGamma(a));
+            return Math.pow(x, a) * Math.exp(-x) * sum / gamma_a;
+        } else {
+            // Use complement: Q(a, x) = 1 - P(a, x) and compute Q using continued fraction
+            // For large x, Q converges faster
+            return 1 - this.regularizedIncompleteGammaUpper(a, x);
+        }
+    },
+
+    /**
+     * Compute the upper regularized incomplete gamma function Q(a, x) = 1 - P(a, x)
+     * Uses continued fraction for better convergence when x is large
+     * @param {number} a - Shape parameter
+     * @param {number} x - Lower limit
+     * @returns {number} Q(a, x) = Γ(a, x) / Γ(a)
+     */
+    regularizedIncompleteGammaUpper: function(a, x) {
+        if (x < 0) return NaN;
+        if (x === 0) return 1;
+        if (a <= 0) return NaN;
+
+        const MAX_ITER = 200;
+        const EPS = 1e-10;
+
+        // Continued fraction for Q(a, x)
+        // Q(a, x) = e^(-x) * x^a / Γ(a) * CF
+        let b = x + 1 - a;
+        let c = 1 / 1e-30; // Very small number to avoid division by zero
+        let d = 1 / b;
+        let h = d;
+
+        for (let i = 1; i <= MAX_ITER; i++) {
+            const an = -i * (i - a);
+            b += 2;
+            d = an * d + b;
+            if (Math.abs(d) < 1e-30) d = 1e-30;
+            c = b + an / c;
+            if (Math.abs(c) < 1e-30) c = 1e-30;
+            d = 1 / d;
+            const del = d * c;
+            h *= del;
+            if (Math.abs(del - 1) < EPS) {
+                break;
+            }
+        }
+
+        const gamma_a = Math.exp(this.logGamma(a));
+        return Math.exp(-x) * Math.pow(x, a) * h / gamma_a;
+    },
+
+    /**
+     * Compute the cumulative distribution function of the chi-squared distribution
+     * @param {number} x - Chi-squared statistic value
+     * @param {number} df - Degrees of freedom
+     * @returns {number} P(χ² <= x) where χ² follows chi-squared(df) distribution
+     */
+    chiSquaredCDF: function(x, df) {
+        if (x < 0) return 0;
+        if (df <= 0) return NaN;
+        if (x === 0) return 0;
+
+        // Chi-squared(df) = Gamma(df/2, 2)
+        // P(χ² <= x) = P(Gamma(df/2, 2) <= x) = P(Gamma(df/2) <= x/2)
+        // = regularizedIncompleteGamma(df/2, x/2)
+        return this.regularizedIncompleteGamma(df / 2, x / 2);
+    },
+    /* ************************ end of Cursor AI-written code from 2026-01-02 ************************ */
+
+    /* ************************ start of ChatGPT-written code from 2026-01-01 ************************ */
 
     /**
      * Compute a one-way ANOVA table from summary statistics with protection against divide-by-zero.

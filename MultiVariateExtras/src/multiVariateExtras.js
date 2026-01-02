@@ -602,6 +602,9 @@ const multiVariateExtras = {
                                 const correlationResults = multiVariateExtras.correlationUtils.CramersVWithMissingCorr(allCases, attr_name1, attr_name2);
                                 
                                 correlationResult = correlationResults.correlation;
+                                p_value = correlationResults.p_value;
+                                correl_incl_missing = correlationResults.correl_incl_missing;
+                                p_incl_missing = correlationResults.p_incl_missing;
                                 nCompleteCases = correlationResults.nCompleteCases;
                                 nBlanks1_actual = correlationResults.nxMissing;
                                 nBlanks2_actual = correlationResults.nyMissing;
