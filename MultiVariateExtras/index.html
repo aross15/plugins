@@ -268,7 +268,7 @@
     <div id="blocks-of-plots">
         <div class="stripe" style="text-align: center; margin-bottom: 20px;">
             <div style="font-size: 14px; color: #333; padding: 10px;">
-                Designate a block number for each attribute, then plot one block against another block. We suggest using block 0 for attributes you intend to never plot.
+                Designate a block number for each attribute, then plot one block against itself or another block. Suggestion: use block 0 for attributes that you intend to never plot.
             </div>
         </div>
 
@@ -344,6 +344,27 @@
                 onclick="multiVariateExtras.handlers.createBlockPlotMatrix()"
                 style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #2196F3; color: white; border: none; border-radius: 4px;">
                 create blocks of plots
+            </button>
+        </div>
+
+        <div class="stripe" style="text-align: center; margin-bottom: 30px;">
+            <button 
+                id="add-block-least-squares-button" 
+                onclick="multiVariateExtras.handlers.addBlockLeastSquaresLines()"
+                style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px;">
+                add Least Squares lines to scatterplots (v3 only)
+                <!-- in a Zoom meeting 2025-09-23, Bill Finzer said essentially: -->
+                 <!-- v3 can do some things that v2 will never be able to do, like letting an API add annotations (trendline, etc) after creating a graph.
+-->
+            </button>
+        </div>
+
+        <div class="stripe" style="text-align: center; margin-bottom: 30px;">
+            <button 
+                id="delete-blocks-of-plots-button" 
+                onclick="multiVariateExtras.handlers.deleteBlockPlotMatrix()"
+                style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #f44336; color: white; border: none; border-radius: 4px;">
+                Delete blocks of plots for this dataset
             </button>
         </div>
 

@@ -1202,6 +1202,105 @@ const multiVariateExtras = {
         },
 
         /**
+         * Deletes all blocks of plots graphs for the current dataset
+         * @returns {Promise<void>}
+         */
+        deleteBlockPlotMatrix: async function () {
+            if (!multiVariateExtras.datasetInfo || !multiVariateExtras.datasetInfo.name) {
+                multiVariateExtras.warn("No dataset selected for blocks of plots deletion");
+                return;
+            }
+
+            const datasetName = multiVariateExtras.datasetInfo.name;
+            const datasetTitle = multiVariateExtras.datasetInfo.title;
+            const blockGraphsKey = `${datasetName}_blocks`;
+            const graphs = multiVariateExtras.createdGraphsMap.get(blockGraphsKey);
+            
+            if (!graphs || graphs.length === 0) {
+                multiVariateExtras.log(`No blocks of plots graphs found for dataset: ${datasetTitle}`);
+                return;
+            }
+
+            multiVariateExtras.log(`Deleting ${graphs.length} blocks of plots graphs for dataset: ${datasetTitle}`);
+
+            try {
+                for (const graphId of graphs) {
+                    const message = {
+                        action: "delete",
+                        resource: `component[${graphId}]`
+                    };
+                    
+                    const result = await codapInterface.sendRequest(message);
+                    if (result.success) {
+                        multiVariateExtras.log(`Successfully deleted graph ${graphId}`);
+                    } else {
+                        multiVariateExtras.warn(`Failed to delete graph ${graphId}: ${result.error || 'unknown error'}`);
+                    }
+                }
+                
+                // Clear the stored graphs after successful deletion
+                multiVariateExtras.createdGraphsMap.delete(blockGraphsKey);
+                multiVariateExtras.log(`Cleared stored blocks of plots graphs for dataset: ${datasetName}`);
+                
+            } catch (error) {
+                multiVariateExtras.error(`Error deleting blocks of plots graphs: ${error}`);
+            }
+        },
+
+        /**
+         * Adds least squares lines to scatterplots in the blocks of plots
+         * @returns {Promise<void>}
+         */
+        addBlockLeastSquaresLines: async function () {
+            if (!multiVariateExtras.datasetInfo || !multiVariateExtras.datasetInfo.name) {
+                multiVariateExtras.warn("No dataset selected for adding least squares lines to blocks of plots");
+                return;
+            }
+
+            const datasetName = multiVariateExtras.datasetInfo.name;
+            const datasetTitle = multiVariateExtras.datasetInfo.title;
+            const blockGraphsKey = `${datasetName}_blocks`;
+            const graphs = multiVariateExtras.createdGraphsMap.get(blockGraphsKey);
+            
+            if (!graphs || graphs.length === 0) {
+                multiVariateExtras.log(`No blocks of plots graphs found for dataset: ${datasetTitle}`);
+                return;
+            }
+
+            multiVariateExtras.log(`Adding least squares lines to ${graphs.length} blocks of plots graphs for dataset: ${datasetTitle}`);
+
+            try {
+                // Loop through the graphs to add least squares lines
+                for (const graphId of graphs) {
+                    // We could be careful to only add LSRL to scatterplots, but I'm not going to bother.
+                    // It's not a big deal if we attempt to add it to other types of graphs.
+                    multiVariateExtras.log(`Processing graph ${graphId} for least squares lines`);
+                    
+                    // Send API request to add LSRL (Least Squares Regression Line) adornment
+                    const message = {
+                        action: "create",
+                        resource: `component[${graphId}].adornment`,
+                        values: {
+                            type: "LSRL"
+                        }
+                    };
+                    
+                    const result = await codapInterface.sendRequest(message);
+                    if (result.success) {
+                        multiVariateExtras.log(`Successfully added least squares line to graph ${graphId}`);
+                    } else {
+                        multiVariateExtras.warn(`Failed to add least squares line to graph ${graphId}: ${result.error || 'unknown error'}`);
+                    }
+                }
+                
+                multiVariateExtras.log(`Completed processing ${graphs.length} graphs for least squares lines`);
+                
+            } catch (error) {
+                multiVariateExtras.error(`Error adding least squares lines to blocks of plots graphs: ${error}`);
+            }
+        },
+
+        /**
          * Adds least squares lines to scatterplots in the plot matrix
          * @returns {Promise<void>}
          */
