@@ -1077,15 +1077,29 @@ const multiVariateExtras = {
 
                         const attr1 = predictorAttributes[i];
                         const attr2 = responseAttributes[j];
+                        let graphId;
                         
-                        // For block plots, we always plot two different attributes (no self-plots)
-                        const graphId = await multiVariateExtras.handlers.createPairGraph(
-                            attr1.name, attr1.type,
-                            attr2.name, attr2.type,
-                            selectedLegendAttribute,
-                            position,
-                            useSegmentedBars
-                        );
+                        // If we would be plotting a variable against itself, then
+                        // don't have the attribute on the y-axis, just the x-axis.
+                        // That way we get a univariate plot of the variable; CODAP defaults to a dotplot.
+                        // Some packages use a histogram instead.
+                        if (attr1.name === attr2.name) { // would plot a variable against itself
+                            graphId = await multiVariateExtras.handlers.createPairGraph(
+                                attr1.name, attr1.type,
+                                null, null,
+                                selectedLegendAttribute,
+                                position,
+                                useSegmentedBars
+                            );
+                        } else { // usual case: plot two different variables against each other
+                            graphId = await multiVariateExtras.handlers.createPairGraph(
+                                attr1.name, attr1.type,
+                                attr2.name, attr2.type,
+                                selectedLegendAttribute,
+                                position,
+                                useSegmentedBars
+                            );
+                        }
                         
                         if (graphId) {
                             createdGraphs.push(graphId);
