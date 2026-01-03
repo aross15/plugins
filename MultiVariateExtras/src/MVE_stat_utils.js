@@ -255,6 +255,8 @@ const MVE_stat_utils = {
         // Count of missing x and y individually
         let nxMissing = 0;
         let nyMissing = 0;
+        // Count of cases where neither x nor y is missing
+        let nNeitherMissing = 0;
 
         // Per-category statistics for ANOVA computation
         // Map from category string to {count, mean, S} where:
@@ -284,6 +286,11 @@ const MVE_stat_utils = {
             // Update counts of missing x and y
             nxMissing += ixMissing;
             nyMissing += iyMissing;
+            
+            // Count cases where neither is missing
+            if (ixMissing === 0.0 && iyMissing === 0.0) {
+                nNeitherMissing += 1;
+            }
 
             // Update statistics for binary indicators
             nInd += 1;
@@ -340,7 +347,9 @@ const MVE_stat_utils = {
         let p_value = NaN;
         let correl_incl_missing = NaN;
         let p_incl_missing = NaN;
-        let nCompleteCases = 0;
+        // nCompleteCases is the count of cases where neither x nor y is missing
+        // This is computed independently of whether we can compute the correlation
+        const nCompleteCases = nNeitherMissing;
 
         // First call: include all categories (including special_missing_category)
         // Check that we have at least one category and at least one complete case before running ANOVA
@@ -363,7 +372,6 @@ const MVE_stat_utils = {
             if (betweenRowExcl && !isNaN(betweenRowExcl.n2) && betweenRowExcl.n2 >= 0) {
                 correlation = Math.sqrt(betweenRowExcl.n2);
                 p_value = betweenRowExcl.p;
-                nCompleteCases = countsExcludingMissing.reduce((a, b) => a + b, 0);
             }
         }
 
@@ -484,6 +492,8 @@ const MVE_stat_utils = {
         // Count of missing x and y individually
         let nxMissing = 0;
         let nyMissing = 0;
+        // Count of cases where neither x nor y is missing
+        let nNeitherMissing = 0;
 
         // One way to structure a contingency table in Javascript is to have a map-of-maps,
         // where the outer map key is the row category and the inner map key is the column category, or vice versa,
@@ -514,6 +524,11 @@ const MVE_stat_utils = {
             // Update counts of missing x and y
             nxMissing += ixMissing;
             nyMissing += iyMissing;
+            
+            // Count cases where neither is missing
+            if (ixMissing === 0.0 && iyMissing === 0.0) {
+                nNeitherMissing += 1;
+            }
 
             // Update statistics for binary indicators
             nInd += 1;
@@ -563,7 +578,9 @@ const MVE_stat_utils = {
         let p_value = NaN;
         let correl_incl_missing = NaN;
         let p_incl_missing = NaN;
-        let nCompleteCases = 0;
+        // nCompleteCases is the count of cases where neither x nor y is missing
+        // This is computed independently of whether we can compute the correlation
+        const nCompleteCases = nNeitherMissing;
 
         // First call: include all categories (including special_missing_category)
         if (rowCategoriesIncl.length > 1 && colCategoriesIncl.length > 1) {
@@ -612,7 +629,6 @@ const MVE_stat_utils = {
                 // Also compute using Wilson-Hilferty approximation for comparison
                 const p_value_WH = this.chiSquaredSF_WilsonHilferty(chiSqResultExcl.chiSquared, chiSqResultExcl.df);
                 console.log('[CramersVWithMissingCorr] EXCLUDING missing - chiSquared:', chiSqResultExcl.chiSquared, 'df:', chiSqResultExcl.df, 'CDF:', cdf_excl, 'p-value gamma (1-CDF):', p_value, 'p-value Wilson-Hilferty:', p_value_WH);
-                nCompleteCases = chiSqResultExcl.n;
             }
         }
 
