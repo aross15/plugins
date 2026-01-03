@@ -43,6 +43,8 @@ const multiVariateExtras_ui = {
         this.updateCorrelationDatasetName();
         // Update plot matrix dataset name on initialization
         this.updatePlotMatrixDatasetName();
+        // Update blocks of plots dataset name on initialization
+        this.updateBlocksOfPlotsDatasetName();
     },
 
     updateCount: 0,
@@ -60,10 +62,12 @@ const multiVariateExtras_ui = {
 
         if (multiVariateExtras.datasetInfo) {
             this.plotMatrixAttributeControls.install();  // Install plot matrix attribute controls
+            this.blocksOfPlotsAttributeControls.install(); // Install blocks of plots attribute controls
             this.correlationAttributeControls.install(); // Install correlation attribute controls
             await this.makeSummary();
             this.updateCorrelationDatasetName();  // Update correlation tab dataset name
             this.updatePlotMatrixDatasetName();   // Update plot matrix tab dataset name
+            this.updateBlocksOfPlotsDatasetName(); // Update blocks of plots tab dataset name
         }
 
 
@@ -219,6 +223,142 @@ const multiVariateExtras_ui = {
     },
 
     /**
+     * Update the dataset name display in the blocks of plots tab
+     */
+    updateBlocksOfPlotsDatasetName: function () {
+        const blocksOfPlotsDatasetElement = document.getElementById("blocks-of-plots-dataset-name");
+        if (blocksOfPlotsDatasetElement) {
+            if (multiVariateExtras.datasetList && multiVariateExtras.datasetList.length > 0) {
+                // Find the current dataset by ID and use its title
+                const currentDataset = multiVariateExtras.datasetList.find(ds => ds.id === multiVariateExtras.dsID);
+                if (currentDataset) {
+                    blocksOfPlotsDatasetElement.textContent = currentDataset.title || currentDataset.name;
+                } else {
+                    blocksOfPlotsDatasetElement.textContent = "No dataset selected";
+                }
+            } else if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.name) {
+                // Fallback: use the dataset name from datasetInfo
+                blocksOfPlotsDatasetElement.textContent = multiVariateExtras.datasetInfo.name;
+            } else {
+                blocksOfPlotsDatasetElement.textContent = "No dataset selected";
+            }
+        }
+        
+        // Update the legend attribute dropdown
+        this.updateBlockLegendAttributeDropdown();
+        // Update the attribute count notice when dataset changes
+        this.updateBlocksOfPlotsAttributeCounts();
+    },
+
+    /**
+     * Populate the block legend attribute dropdown with available attributes
+     */
+    updateBlockLegendAttributeDropdown: function () {
+        const dropdown = document.getElementById("block-legend-attribute-dropdown");
+        if (!dropdown) {
+            return;
+        }
+
+        // Clear existing options except the first one
+        while (dropdown.children.length > 1) {
+            dropdown.removeChild(dropdown.lastChild);
+        }
+
+        // Get attributes using the centralized function
+        const attributes = multiVariateExtras.getAttributesWithTypes();
+        
+        // Add attribute options
+        attributes.forEach(attr => {
+            const option = document.createElement("option");
+            option.value = attr.name;
+            option.textContent = attr.name;
+            dropdown.appendChild(option);
+        });
+    },
+
+    /**
+     * Update the attribute count notice in the blocks of plots tab
+     */
+    updateBlocksOfPlotsAttributeCounts: function () {
+        const noticeElement = document.getElementById("blocks-of-plots-attribute-count-notice");
+        const errorNoticeElement = document.getElementById("blocks-of-plots-validation-error-notice");
+        if (!noticeElement) {
+            return;
+        }
+
+        // Get predictor and response block numbers
+        const predictorInput = document.getElementById("block-predictor-input");
+        const responseInput = document.getElementById("block-response-input");
+        
+        let predictorBlock = null;
+        let responseBlock = null;
+        
+        if (predictorInput) {
+            const value = predictorInput.value;
+            predictorBlock = value !== "" && !isNaN(value) ? parseInt(value, 10) : null;
+        }
+        
+        if (responseInput) {
+            const value = responseInput.value;
+            responseBlock = value !== "" && !isNaN(value) ? parseInt(value, 10) : null;
+        }
+
+        // Get all attributes using the centralized function
+        const attributes = multiVariateExtras.getAttributesWithTypes();
+        
+        // Count attributes in predictor and response blocks
+        let blockPredictorCount = 0;
+        let blockResponseCount = 0;
+        let malformedCount = 0;
+
+        attributes.forEach(attr => {
+            const blockInput = document.getElementById(`block-number-input-${attr.name}`);
+            if (blockInput) {
+                const value = blockInput.value;
+                const blockNumber = value !== "" && !isNaN(value) ? parseInt(value, 10) : null;
+                
+                if (blockNumber === null || isNaN(blockNumber)) {
+                    malformedCount++;
+                } else {
+                    // Store the block number
+                    multiVariateExtras.blockNumbers.set(attr.name, blockNumber);
+                    
+                    if (predictorBlock !== null && blockNumber === predictorBlock) {
+                        blockPredictorCount++;
+                    }
+                    if (responseBlock !== null && blockNumber === responseBlock) {
+                        blockResponseCount++;
+                    }
+                }
+            } else {
+                // If input doesn't exist, use stored value
+                const storedBlockNumber = multiVariateExtras.blockNumbers.get(attr.name);
+                if (storedBlockNumber !== undefined) {
+                    if (predictorBlock !== null && storedBlockNumber === predictorBlock) {
+                        blockPredictorCount++;
+                    }
+                    if (responseBlock !== null && storedBlockNumber === responseBlock) {
+                        blockResponseCount++;
+                    }
+                }
+            }
+        });
+
+        // Update the display
+        noticeElement.textContent = `Attributes selected: ${blockPredictorCount} predictor, ${blockResponseCount} response`;
+
+        // Update validation error notice
+        if (errorNoticeElement) {
+            if (malformedCount > 0) {
+                errorNoticeElement.textContent = `${malformedCount} block number(s) improperly entered`;
+                errorNoticeElement.style.display = "block";
+            } else {
+                errorNoticeElement.style.display = "none";
+            }
+        }
+    },
+
+    /**
      * Plot matrix attribute controls section
      */
     plotMatrixAttributeControls: {
@@ -294,6 +434,81 @@ const multiVariateExtras_ui = {
             }
             // Update the attribute count notice after installing the table
             multiVariateExtras_ui.updatePlotMatrixAttributeCounts();
+        }
+    },
+
+    /**
+     * Blocks of plots attribute controls section
+     */
+    blocksOfPlotsAttributeControls: {
+        tbodyID: "blocks-of-plots-attribute-tbody",
+
+        /**
+         * Create HTML for the blocks of plots attribute controls table
+         * @returns {string} the HTML for the table body
+         */
+        make: function () {
+            let tGuts = "";
+
+            // Get attributes using the centralized function
+            const attributes = multiVariateExtras.getAttributesWithTypes();
+            
+            if (attributes.length === 0) {
+                tGuts = `<tr><td colspan="3" style="text-align: center; padding: 8px; color: #666;">No attributes available</td></tr>`;
+            } else {
+                attributes.forEach(attr => {
+                    tGuts += this.makeOneAttributeRow(attr);
+                });
+            }
+
+            return tGuts;
+        },
+
+        /**
+         * Create HTML for one attribute row in the blocks of plots table
+         * @param {Object} attr - Attribute object with name and type properties
+         * @returns {string} HTML for one table row
+         */
+        makeOneAttributeRow: function (attr) {
+            // Get the current block number for this attribute, default to 1
+            const currentBlockNumber = multiVariateExtras.blockNumbers.has(attr.name) 
+                ? multiVariateExtras.blockNumbers.get(attr.name) 
+                : 1;
+
+            return `<tr>
+                <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">
+                    <input 
+                        type="number" 
+                        id="block-number-input-${attr.name}" 
+                        data-attribute-name="${attr.name}"
+                        value="${currentBlockNumber}" 
+                        min="0" 
+                        max="100000" 
+                        step="1" 
+                        style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center;"
+                        onchange="multiVariateExtras.handlers.blockNumberInputChange('${attr.name}')"
+                        oninput="multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts()"
+                    />
+                </td>
+                <td style="text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; color: #666;">
+                    ${attr.type || "[no type listed]"}
+                </td>
+                <td style="text-align: left; padding: 8px; border-bottom: 1px solid #eee;">
+                    ${attr.name}
+                </td>
+            </tr>`;
+        },
+
+        /**
+         * Install the blocks of plots attribute controls
+         */
+        install: function () {
+            const tbody = document.getElementById(this.tbodyID);
+            if (tbody) {
+                tbody.innerHTML = this.make();
+            }
+            // Update the attribute count notice after installing the table
+            multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts();
         }
     },
 
@@ -422,6 +637,8 @@ const multiVariateExtras_ui = {
                 multiVariateExtras_ui.updateCorrelationDatasetName();
                 // Update plot matrix tab dataset name when single dataset is auto-selected
                 multiVariateExtras_ui.updatePlotMatrixDatasetName();
+                // Update blocks of plots tab dataset name when single dataset is auto-selected
+                multiVariateExtras_ui.updateBlocksOfPlotsDatasetName();
 
             } else {
                 //      in this case (2 or more datasets) we have to make a menu

@@ -41,6 +41,7 @@ const multiVariateExtras = {
     createdGraphsMap: new Map(), //  stores created graphs by dataset name
     plotMatrixHiddenAttributes: new Set(), //  stores attributes hidden in plot matrix context
     correlationHiddenAttributes: new Set(), //  stores attributes hidden in correlation context
+    blockNumbers: new Map(), //  stores block number for each attribute (attribute name -> block number)
 
     initialize: async function () {
         await connect.initialize();
@@ -294,23 +295,24 @@ const multiVariateExtras = {
      * @param {number} rows - Number of rows in the plot matrix
      * @param {number} cols - Number of columns in the plot matrix
      * @param {Object} options - Optional object with xoffset and yoffset properties (overrides input box values)
+     * @param {string} prefix - Optional prefix for input field IDs (e.g., "block-" or empty string)
      * @returns {Array} 2D array of objects with x, y, width, height properties
      * xoffset and yoffset are offsets between graphs in the matrix.
      * If not provided in options, reads from input boxes with fallback defaults of 5 pixels.
-     * It's highly unlikely that we'd want to use a different number of rows than columns,
-     * but it doesn't hurt to allow it.
+     * Originally it seemed highly unlikely that we'd want to use a different number of rows than columns,
+     * but then I thought of the Blocks of Plots idea and was glad that I allowed #rows and #cols to be different!
      */
-    calculatePlotMatrixLayout: function(rows, cols, options = {}) {
+    calculatePlotMatrixLayout: function(rows, cols, options = {}, prefix = '') {
         try {
             console.log("c=== Plot Matrix Layout Calculation Debug ===");
 
-            // Read values from input boxes
-            const plotWidthInput = document.getElementById('plot-width-input');
-            const plotHeightInput = document.getElementById('plot-height-input');
-            const plotXInput = document.getElementById('plot-x-input');
-            const plotYInput = document.getElementById('plot-y-input');
-            const plotXSpacingInput = document.getElementById('plot-x-spacing-input');
-            const plotYSpacingInput = document.getElementById('plot-y-spacing-input');
+            // Read values from input boxes with optional prefix
+            const plotWidthInput = document.getElementById(`${prefix}plot-width-input`);
+            const plotHeightInput = document.getElementById(`${prefix}plot-height-input`);
+            const plotXInput = document.getElementById(`${prefix}plot-x-input`);
+            const plotYInput = document.getElementById(`${prefix}plot-y-input`);
+            const plotXSpacingInput = document.getElementById(`${prefix}plot-x-spacing-input`);
+            const plotYSpacingInput = document.getElementById(`${prefix}plot-y-spacing-input`);
             
             // Get values from input boxes, with fallback defaults
             const plotWidth = plotWidthInput ? parseFloat(plotWidthInput.value) : 300;
@@ -406,7 +408,8 @@ const multiVariateExtras = {
                 // Clear hidden attributes sets when switching to a new dataset
                 multiVariateExtras.plotMatrixHiddenAttributes.clear();
                 multiVariateExtras.correlationHiddenAttributes.clear();
-                multiVariateExtras.log(`Cleared hidden attributes sets for new dataset`);
+                multiVariateExtras.blockNumbers.clear(); // Clear block numbers when switching datasets
+                multiVariateExtras.log(`Cleared hidden attributes sets and block numbers for new dataset`);
                 
                 await notify.setUpNotifications();
             } else {
@@ -947,6 +950,162 @@ const multiVariateExtras = {
             } catch (error) {
                 console.log("Error creating plot matrix: ", error);
                 multiVariateExtras.log("Error creating plot matrix: ", error);
+                return null;
+            }
+        },
+
+        /**
+         * Handles user change of a block number input for a single attribute in the blocks of plots tab
+         *
+         * @param iAttName - The name of the attribute
+         * @returns {Promise<void>}
+         */
+        blockNumberInputChange: async function (iAttName) {
+            const blockInput = document.getElementById(`block-number-input-${iAttName}`);
+            if (blockInput) {
+                const value = blockInput.value;
+                const blockNumber = value !== "" && !isNaN(value) ? parseInt(value, 10) : null;
+                
+                if (blockNumber !== null && !isNaN(blockNumber)) {
+                    multiVariateExtras.blockNumbers.set(iAttName, blockNumber);
+                    multiVariateExtras.log(`Block number for ${iAttName} set to ${blockNumber}`);
+                } else {
+                    multiVariateExtras.blockNumbers.delete(iAttName);
+                    multiVariateExtras.log(`Block number for ${iAttName} cleared (invalid value)`);
+                }
+                
+                // Update the attribute counts
+                multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts();
+            }
+        },
+
+        /**
+         * Handles user click on "create blocks of plots" button in blocks of plots tab.
+         * Creates a matrix of plots showing relationships between attributes in selected blocks.
+         * @param {Object} position - Optional position object with x, y coordinates
+         * @param {Object} dimensions - Optional dimensions object with width, height
+         * @returns {Promise} - Promise that resolves with the component IDs if successful
+         */
+        createBlockPlotMatrix: async function (position = null, dimensions = null) {
+            console.log("createBlockPlotMatrix");
+            
+            if (!multiVariateExtras.datasetInfo) {
+                multiVariateExtras.warn("No dataset selected for blocks of plots analysis");
+                return null;
+            }
+
+            try {
+                // Get predictor and response block numbers
+                const predictorInput = document.getElementById("block-predictor-input");
+                const responseInput = document.getElementById("block-response-input");
+                
+                let predictorBlock = null;
+                let responseBlock = null;
+                
+                if (predictorInput) {
+                    const value = predictorInput.value;
+                    predictorBlock = value !== "" && !isNaN(value) ? parseInt(value, 10) : null;
+                }
+                
+                if (responseInput) {
+                    const value = responseInput.value;
+                    responseBlock = value !== "" && !isNaN(value) ? parseInt(value, 10) : null;
+                }
+
+                if (predictorBlock === null || responseBlock === null) {
+                    multiVariateExtras.warn("Please specify both predictor and response block numbers");
+                    return null;
+                }
+
+                // Get all attributes and filter by block numbers
+                let allAttributes = multiVariateExtras.getAttributesWithTypes();
+                
+                // First, ensure block numbers are stored from inputs
+                allAttributes.forEach(attr => {
+                    const blockInput = document.getElementById(`block-number-input-${attr.name}`);
+                    if (blockInput) {
+                        const value = blockInput.value;
+                        const blockNumber = value !== "" && !isNaN(value) ? parseInt(value, 10) : null;
+                        if (blockNumber !== null && !isNaN(blockNumber)) {
+                            multiVariateExtras.blockNumbers.set(attr.name, blockNumber);
+                        }
+                    }
+                });
+                
+                // Filter attributes by block numbers
+                const predictorAttributes = allAttributes.filter(attr => 
+                    multiVariateExtras.blockNumbers.get(attr.name) === predictorBlock
+                );
+                
+                const responseAttributes = allAttributes.filter(attr => 
+                    multiVariateExtras.blockNumbers.get(attr.name) === responseBlock
+                );
+                
+                if (predictorAttributes.length === 0) {
+                    multiVariateExtras.warn(`No attributes found in predictor block ${predictorBlock}`);
+                    return null;
+                }
+                
+                if (responseAttributes.length === 0) {
+                    multiVariateExtras.warn(`No attributes found in response block ${responseBlock}`);
+                    return null;
+                }
+
+                // Get the checkbox value for useSegmentedBars
+                const useSegmentedBarsCheckbox = document.getElementById('block-use-segmented-bars-checkbox');
+                const useSegmentedBars = useSegmentedBarsCheckbox ? useSegmentedBarsCheckbox.checked : true;
+
+                // Get the selected legend attribute
+                const legendAttributeDropdown = document.getElementById('block-legend-attribute-dropdown');
+                const selectedLegendAttribute = legendAttributeDropdown ? legendAttributeDropdown.value : null;
+
+                multiVariateExtras.log(`Creating blocks of plots with ${predictorAttributes.length} predictor attributes and ${responseAttributes.length} response attributes`);
+                multiVariateExtras.log(`Predictor block: ${predictorBlock}, Response block: ${responseBlock}`);
+                multiVariateExtras.log(`Predictor attributes: ${predictorAttributes.map(a => a.name).join(', ')}`);
+                multiVariateExtras.log(`Response attributes: ${responseAttributes.map(a => a.name).join(', ')}`);
+
+                // Calculate layout for the block plot matrix
+                const numPredictor = predictorAttributes.length;
+                const numResponse = responseAttributes.length;
+                const layout = multiVariateExtras.calculatePlotMatrixLayout(numResponse, numPredictor, {}, 'block-');
+
+                // Create graphs for each pair of attributes
+                const createdGraphs = [];
+                for (let i = 0; i < numPredictor; i++) { // Predictor (x-axis)
+                    for (let j = 0; j < numResponse; j++) { // Response (y-axis)
+                        const position = layout[j][i]; // j,i because Response stays the same across a row
+
+                        const attr1 = predictorAttributes[i];
+                        const attr2 = responseAttributes[j];
+                        
+                        // For block plots, we always plot two different attributes (no self-plots)
+                        const graphId = await multiVariateExtras.handlers.createPairGraph(
+                            attr1.name, attr1.type,
+                            attr2.name, attr2.type,
+                            selectedLegendAttribute,
+                            position,
+                            useSegmentedBars
+                        );
+                        
+                        if (graphId) {
+                            createdGraphs.push(graphId);
+                        }
+                    }
+                }
+
+                multiVariateExtras.log(`Created ${createdGraphs.length} graphs in blocks of plots`);
+                
+                // Store the created graphs in the Map using dataset name as key (with a different key to distinguish from regular plot matrix)
+                if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.name) {
+                    const blockGraphsKey = `${multiVariateExtras.datasetInfo.name}_blocks`;
+                    multiVariateExtras.createdGraphsMap.set(blockGraphsKey, createdGraphs);
+                    multiVariateExtras.log(`Stored ${createdGraphs.length} graphs for dataset blocks: ${multiVariateExtras.datasetInfo.name}`);
+                }
+                
+                return createdGraphs;
+            } catch (error) {
+                console.log("Error creating blocks of plots: ", error);
+                multiVariateExtras.log("Error creating blocks of plots: ", error);
                 return null;
             }
         },
