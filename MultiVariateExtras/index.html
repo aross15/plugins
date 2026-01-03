@@ -320,9 +320,9 @@
         <div class="stripe" style="text-align: center; margin-bottom: 20px;">
             <div style="display: inline-flex; align-items: center; gap: 10px;">
                 <span style="font-size: 14px;">Predictor: Block#</span>
-                <input type="number" id="block-predictor-input" value="1" min="0" max="100000" step="1" style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;" oninput="multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts()">
+                <input type="number" id="block-predictor-input" value="1" min="0" max="100000" step="1" style="width: 60px; padding: 3px; border: 1px solid #ccc; border-radius: 3px;" oninput="multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts()">
                 <span style="font-size: 14px;">Response: Block#</span>
-                <input type="number" id="block-response-input" value="1" min="0" max="100000" step="1" style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;" oninput="multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts()">
+                <input type="number" id="block-response-input" value="1" min="0" max="100000" step="1" style="width: 60px; padding: 3px; border: 1px solid #ccc; border-radius: 3px;" oninput="multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts()">
             </div>
         </div>
 
@@ -343,7 +343,7 @@
                 id="create-blocks-of-plots-button" 
                 onclick="multiVariateExtras.handlers.createBlockPlotMatrix()"
                 style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #2196F3; color: white; border: none; border-radius: 4px;">
-                create blocks of plots
+                create block of plots
             </button>
         </div>
 
@@ -364,7 +364,7 @@
                 id="delete-blocks-of-plots-button" 
                 onclick="multiVariateExtras.handlers.deleteBlockPlotMatrix()"
                 style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #f44336; color: white; border: none; border-radius: 4px;">
-                Delete blocks of plots for this dataset
+                Delete block of plots for this dataset
             </button>
         </div>
 

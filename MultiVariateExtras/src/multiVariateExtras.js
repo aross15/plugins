@@ -980,7 +980,7 @@ const multiVariateExtras = {
         },
 
         /**
-         * Handles user click on "create blocks of plots" button in blocks of plots tab.
+         * Handles user click on "create block of plots" button in blocks of plots tab.
          * Creates a matrix of plots showing relationships between attributes in selected blocks.
          * @param {Object} position - Optional position object with x, y coordinates
          * @param {Object} dimensions - Optional dimensions object with width, height
@@ -990,7 +990,7 @@ const multiVariateExtras = {
             console.log("createBlockPlotMatrix");
             
             if (!multiVariateExtras.datasetInfo) {
-                multiVariateExtras.warn("No dataset selected for blocks of plots analysis");
+                multiVariateExtras.warn("No dataset selected for block of plots analysis");
                 return null;
             }
 
@@ -1059,7 +1059,7 @@ const multiVariateExtras = {
                 const legendAttributeDropdown = document.getElementById('block-legend-attribute-dropdown');
                 const selectedLegendAttribute = legendAttributeDropdown ? legendAttributeDropdown.value : null;
 
-                multiVariateExtras.log(`Creating blocks of plots with ${predictorAttributes.length} predictor attributes and ${responseAttributes.length} response attributes`);
+                multiVariateExtras.log(`Creating block of plots with ${predictorAttributes.length} predictor attributes and ${responseAttributes.length} response attributes`);
                 multiVariateExtras.log(`Predictor block: ${predictorBlock}, Response block: ${responseBlock}`);
                 multiVariateExtras.log(`Predictor attributes: ${predictorAttributes.map(a => a.name).join(', ')}`);
                 multiVariateExtras.log(`Response attributes: ${responseAttributes.map(a => a.name).join(', ')}`);
@@ -1107,7 +1107,7 @@ const multiVariateExtras = {
                     }
                 }
 
-                multiVariateExtras.log(`Created ${createdGraphs.length} graphs in blocks of plots`);
+                multiVariateExtras.log(`Created ${createdGraphs.length} graphs in block of plots`);
                 
                 // Store the created graphs in the Map using dataset name as key (with a different key to distinguish from regular plot matrix)
                 if (multiVariateExtras.datasetInfo && multiVariateExtras.datasetInfo.name) {
@@ -1118,8 +1118,8 @@ const multiVariateExtras = {
                 
                 return createdGraphs;
             } catch (error) {
-                console.log("Error creating blocks of plots: ", error);
-                multiVariateExtras.log("Error creating blocks of plots: ", error);
+                console.log("Error creating block of plots: ", error);
+                multiVariateExtras.log("Error creating block of plots: ", error);
                 return null;
             }
         },
@@ -1216,12 +1216,12 @@ const multiVariateExtras = {
         },
 
         /**
-         * Deletes all blocks of plots graphs for the current dataset
+         * Deletes all block of plots graphs for the current dataset
          * @returns {Promise<void>}
          */
         deleteBlockPlotMatrix: async function () {
             if (!multiVariateExtras.datasetInfo || !multiVariateExtras.datasetInfo.name) {
-                multiVariateExtras.warn("No dataset selected for blocks of plots deletion");
+                multiVariateExtras.warn("No dataset selected for block of plots deletion");
                 return;
             }
 
@@ -1231,11 +1231,11 @@ const multiVariateExtras = {
             const graphs = multiVariateExtras.createdGraphsMap.get(blockGraphsKey);
             
             if (!graphs || graphs.length === 0) {
-                multiVariateExtras.log(`No blocks of plots graphs found for dataset: ${datasetTitle}`);
+                multiVariateExtras.log(`No block of plots graphs found for dataset: ${datasetTitle}`);
                 return;
             }
 
-            multiVariateExtras.log(`Deleting ${graphs.length} blocks of plots graphs for dataset: ${datasetTitle}`);
+            multiVariateExtras.log(`Deleting ${graphs.length} block of plots graphs for dataset: ${datasetTitle}`);
 
             try {
                 for (const graphId of graphs) {
@@ -1254,20 +1254,20 @@ const multiVariateExtras = {
                 
                 // Clear the stored graphs after successful deletion
                 multiVariateExtras.createdGraphsMap.delete(blockGraphsKey);
-                multiVariateExtras.log(`Cleared stored blocks of plots graphs for dataset: ${datasetName}`);
+                multiVariateExtras.log(`Cleared stored block of plots graphs for dataset: ${datasetName}`);
                 
             } catch (error) {
-                multiVariateExtras.error(`Error deleting blocks of plots graphs: ${error}`);
+                multiVariateExtras.error(`Error deleting block of plots graphs: ${error}`);
             }
         },
 
         /**
-         * Adds least squares lines to scatterplots in the blocks of plots
+         * Adds least squares lines to scatterplots in the block of plots
          * @returns {Promise<void>}
          */
         addBlockLeastSquaresLines: async function () {
             if (!multiVariateExtras.datasetInfo || !multiVariateExtras.datasetInfo.name) {
-                multiVariateExtras.warn("No dataset selected for adding least squares lines to blocks of plots");
+                multiVariateExtras.warn("No dataset selected for adding least squares lines to block of plots");
                 return;
             }
 
@@ -1277,11 +1277,11 @@ const multiVariateExtras = {
             const graphs = multiVariateExtras.createdGraphsMap.get(blockGraphsKey);
             
             if (!graphs || graphs.length === 0) {
-                multiVariateExtras.log(`No blocks of plots graphs found for dataset: ${datasetTitle}`);
+                multiVariateExtras.log(`No block of plots graphs found for dataset: ${datasetTitle}`);
                 return;
             }
 
-            multiVariateExtras.log(`Adding least squares lines to ${graphs.length} blocks of plots graphs for dataset: ${datasetTitle}`);
+            multiVariateExtras.log(`Adding least squares lines to ${graphs.length} block of plots graphs for dataset: ${datasetTitle}`);
 
             try {
                 // Loop through the graphs to add least squares lines
@@ -1310,7 +1310,7 @@ const multiVariateExtras = {
                 multiVariateExtras.log(`Completed processing ${graphs.length} graphs for least squares lines`);
                 
             } catch (error) {
-                multiVariateExtras.error(`Error adding least squares lines to blocks of plots graphs: ${error}`);
+                multiVariateExtras.error(`Error adding least squares lines to block of plots graphs: ${error}`);
             }
         },
 
