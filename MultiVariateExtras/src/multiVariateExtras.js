@@ -563,8 +563,14 @@ const multiVariateExtras = {
                                     CI_high95 = ciResults.CI_high;
                                     
                                     // Simple p-value approximation (for exact calculation, would need t-distribution)
-                                    const t_stat = correlationResult * Math.sqrt((nCompleteCases - 2) / (1 - correlationResult * correlationResult));
-                                    p_value = 2 * (1 - multiVariateExtras.correlationUtils.standardNormalCDF(Math.abs(t_stat)));
+                                    // Handle perfect correlation (r = ±1) separately to avoid division by zero
+                                    if (Math.abs(correlationResult) === 1.0) {
+                                        // Perfect correlation: p-value should be 0
+                                        p_value = 0;
+                                    } else {
+                                        const t_stat = correlationResult * Math.sqrt((nCompleteCases - 2) / (1 - correlationResult * correlationResult));
+                                        p_value = 2 * (1 - multiVariateExtras.correlationUtils.standardNormalCDF(Math.abs(t_stat)));
+                                    }
                                 }
                             } catch (error) {
                                 console.error(`Error computing correlation between ${attr_name1} and ${attr_name2}:`, error);
