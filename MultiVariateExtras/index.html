@@ -317,6 +317,20 @@
             </button>
         </div>
 
+        <div style="text-align: left; font-size: 12px; color: #333; margin-bottom: 15px; padding-left: 20px;">
+            <div style="margin-bottom: 8px;">
+                <strong>What to do for Numeric Predictor, Categorical Response (NPCR):</strong>
+            </div>
+            <div style="margin-left: 20px; margin-bottom: 4px;">
+                <input type="radio" name="npcr-option" value="leave-blank" id="npcr-leave-blank-radio" checked>
+                <label for="npcr-leave-blank-radio" style="margin-left: 4px;">Leave blank</label>
+            </div>
+            <div style="margin-left: 20px; margin-bottom: 4px;">
+                <input type="radio" name="npcr-option" value="use-eta" id="npcr-use-eta-radio">
+                <label for="npcr-use-eta-radio" style="margin-left: 4px;">Use eta as if CPNR</label>
+            </div>
+        </div>
+
         <div style="text-align: center; font-size: 12px; color: #666; margin-bottom: 20px;">
             Correlation values will be APPENDED to the existing table, rather than replacing it. You should delete the old table before doing more computations, usually.
             In the graph, attributes will show in alphabetic order rather than their order in the table, unless you use the table_order_Predictor and table_order_Response attributes.

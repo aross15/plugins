@@ -517,6 +517,11 @@ const multiVariateExtras = {
                 const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
                 multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
     
+                // Check which NPCR option is selected
+                const npcrLeaveBlankRadio = document.getElementById('npcr-leave-blank-radio');
+                const npcrUseEtaRadio = document.getElementById('npcr-use-eta-radio');
+                const useEtaForNPCR = npcrUseEtaRadio ? npcrUseEtaRadio.checked : false;
+                multiVariateExtras.log(`NPCR option: ${useEtaForNPCR ? 'Use eta as if CPNR' : 'Leave blank'}`);
 
                 // Loop through visible attributes and compute correlations
                 
@@ -622,18 +627,48 @@ const multiVariateExtras = {
                                 correlBlanks = null;
                             }
                         } else if (essentialType1 === "EssentiallyNumeric" && essentialType2 === "EssentiallyCategorical") {
-                            correlationType = "NumericPredictCategorical";
+                            // correlationType = "NPCR"; // Numeric Predict Categorical Response
+                            // Numeric Predict Categorical Response
                             // Not clear what to do with numeric predictor, categorical response.
                             // If the categorical response is binary, we can/should use Point-Biserial.
                             // But there's no standard technique if the categorical response is not binary.
+                            // There is something called Point-Polyserial Correlation for non-binary categorical responses,
+                            // but it presumes the response variable is Ordinal rather than simply nominal.
+                            // If the response variable is binary, we could use Logistic Regression and then a
+                            // pseudo-R^2 like McFadden's or Cox and Snell or Nagelkerke or Tjur, but
+                            // we don't have time to implement logistic regression, let alone multinomial logistic regression,
+                            // aka polytomous regression.
                             try {
-                                const correlationResults = multiVariateExtras.correlationUtils.NumericPredictCategoricalWithMissingCorr(allCases, attr_name1, attr_name2);
-                                
-                                correlationResult = correlationResults.correlation;
-                                nCompleteCases = correlationResults.nCompleteCases;
-                                nBlanks1_actual = correlationResults.nxMissing;
-                                nBlanks2_actual = correlationResults.nyMissing;
-                                correlBlanks = correlationResults.missingnessCorrelation;
+                                let correlationResults;
+                                if (useEtaForNPCR) {
+                                    // Use eta as if CPNR (Categorical Predictor, Numeric Response)
+                                    // Note: we swap the arguments because eta expects (categorical, numeric)
+                                    correlationResults = multiVariateExtras.correlationUtils.etaWithMissingCorr(allCases, attr_name2, attr_name1);
+                                    correlationType = "etaNPCR";
+                                    
+                                    correlationResult = correlationResults.correlation;
+                                    p_value = correlationResults.p_value;
+                                    correl_incl_missing = correlationResults.correl_incl_missing;
+                                    p_incl_missing = correlationResults.p_incl_missing;
+                                    nCompleteCases = correlationResults.nCompleteCases;
+                                    // Swap back: nxMissing is for attr_name2 (categorical response), nyMissing is for attr_name1 (numeric predictor)
+                                    nBlanks1_actual = correlationResults.nyMissing; // attr_name1 is numeric predictor
+                                    nBlanks2_actual = correlationResults.nxMissing; // attr_name2 is categorical response
+                                    correlBlanks = correlationResults.missingnessCorrelation;
+                                } else {
+                                    // Leave blank
+                                    correlationType = "NPCR";
+                                    correlationResults = multiVariateExtras.correlationUtils.NumericPredictCategoricalWithMissingCorr(allCases, attr_name1, attr_name2);
+                                    
+                                    correlationResult = correlationResults.correlation;
+                                    p_value = correlationResults.p_value;
+                                    correl_incl_missing = correlationResults.correl_incl_missing;
+                                    p_incl_missing = correlationResults.p_incl_missing;
+                                    nCompleteCases = correlationResults.nCompleteCases;
+                                    nBlanks1_actual = correlationResults.nxMissing;
+                                    nBlanks2_actual = correlationResults.nyMissing;
+                                    correlBlanks = correlationResults.missingnessCorrelation;
+                                }
                                 
                             } catch (error) {
                                 console.error(`Error computing numeric-predict-categorical correlation between ${attr_name1} and ${attr_name2}:`, error);

@@ -709,12 +709,15 @@ const MVE_stat_utils = {
         const n = 0;
 
         return {
-            correlation: -999, // Placeholder value since numeric-predict-categorical computation not implemented yet
+            correlation: null, // Return blank instead of -999
             nCompleteCases: n,
             missingnessCorrelation: rIxIy,
             nxMissing: nxMissing,
             nyMissing: nyMissing,
-            totalCases: nInd
+            totalCases: nInd,
+            p_value: null, // Return blank for p-value
+            correl_incl_missing: null, // Return blank for correl_incl_missing
+            p_incl_missing: null // Return blank for p_incl_missing
         };
     },
 
