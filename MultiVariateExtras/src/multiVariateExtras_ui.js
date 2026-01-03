@@ -161,6 +161,8 @@ const multiVariateExtras_ui = {
         
         // Update the legend attribute dropdown
         this.updateLegendAttributeDropdown();
+        // Update the attribute count notice when dataset changes
+        this.updatePlotMatrixAttributeCounts();
     },
 
     /**
@@ -187,6 +189,33 @@ const multiVariateExtras_ui = {
             option.textContent = attr.name;
             dropdown.appendChild(option);
         });
+    },
+
+    /**
+     * Update the attribute count notice in the plot matrix tab
+     */
+    updatePlotMatrixAttributeCounts: function () {
+        const noticeElement = document.getElementById("plot-matrix-attribute-count-notice");
+        if (!noticeElement) {
+            return;
+        }
+
+        // Get all attributes using the centralized function
+        const attributes = multiVariateExtras.getAttributesWithTypes();
+        
+        // Filter to visible attributes (not in plotMatrixHiddenAttributes)
+        const visibleAttributes = attributes.filter(attr => 
+            !multiVariateExtras.plotMatrixHiddenAttributes || 
+            !multiVariateExtras.plotMatrixHiddenAttributes.has(attr.name)
+        );
+
+        // Count visible attributes using variables with "simple" prefix
+        // For now, both counts use the same value (all visible attributes)
+        const simplePredictorCount = visibleAttributes.length;
+        const simpleResponseCount = visibleAttributes.length;
+
+        // Update the display
+        noticeElement.textContent = `Attributes selected: ${simplePredictorCount} predictor, ${simpleResponseCount} response`;
     },
 
     /**
@@ -263,6 +292,8 @@ const multiVariateExtras_ui = {
             if (tbody) {
                 tbody.innerHTML = this.make();
             }
+            // Update the attribute count notice after installing the table
+            multiVariateExtras_ui.updatePlotMatrixAttributeCounts();
         }
     },
 
