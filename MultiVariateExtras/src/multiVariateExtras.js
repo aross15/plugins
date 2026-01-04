@@ -519,6 +519,7 @@ const multiVariateExtras = {
                         let p_value = null;
                         let correl_incl_missing = null;
                         let p_incl_missing = null;
+                        let minRC = null;
 
                         // Map attribute types to essential categories
                         const essentialType1 = multiVariateExtras.correlationUtils.mapAttributeTypeToCategory(attr1["type"]);
@@ -593,6 +594,7 @@ const multiVariateExtras = {
                                 p_value = correlationResults.p_value;
                                 correl_incl_missing = correlationResults.correl_incl_missing;
                                 p_incl_missing = correlationResults.p_incl_missing;
+                                minRC = correlationResults.minRC;
                                 nCompleteCases = correlationResults.nCompleteCases;
                                 nBlanks1_actual = correlationResults.nxMissing;
                                 nBlanks2_actual = correlationResults.nyMissing;
@@ -689,6 +691,7 @@ const multiVariateExtras = {
                             "p_value": p_value,
                             "correl_incl_missing": correl_incl_missing,
                             "p_incl_missing": p_incl_missing,
+                            "min(r,c)": minRC,
                             "date": new Date().toISOString(),
                             "type1": attr1["type"],
                             "unit1": attr1["unit"] || "",
@@ -1712,6 +1715,7 @@ const multiVariateExtras = {
                     {name: "p_value", type: 'numeric', description: "p-value for naive hypothesis test on correlation value"},
                     {name: "correl_incl_missing", type: 'numeric', precision: 8, description: "correlation coefficient including missing predictor category"},
                     {name: "p_incl_missing", type: 'numeric', description: "p-value for correlation including missing predictor category"},
+                    {name: "min(r,c)", type: 'numeric', description: "min(number of rows, number of columns) for Cramer's V contingency table (blank for other correlation types)"},
                     {name: "date", type: 'categorical', description: "date and time summary done"},
                     {name: "type1", type: 'categorical', description: "type of the first attribute"},
                     {name: "unit1", type: 'categorical', description: "unit of the first attribute"},

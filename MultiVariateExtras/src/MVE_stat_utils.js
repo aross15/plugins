@@ -608,6 +608,10 @@ const MVE_stat_utils = {
         }
 
         // Second call: exclude special_missing_category
+        // According to Chen and Popovich (2002), any two V coefficients are not comparable unless 
+        // the values of min(r,c) in both contingency tables are the same.
+        // We compute min(r,c) for the correlation excluding missing values (the main correlation value).
+        let minRC = null;
         if (rowCategoriesExcl.length > 1 && colCategoriesExcl.length > 1) {
             const chiSqResultExcl = this.computeChiSquaredFromContingencyTable(
                 contingencyTableExcl,
@@ -621,6 +625,8 @@ const MVE_stat_utils = {
                     rowCategoriesExcl.length,
                     colCategoriesExcl.length
                 );
+                // Compute min(r,c) for the contingency table excluding missing values
+                minRC = Math.min(rowCategoriesExcl.length, colCategoriesExcl.length);
                 // Compute p-value: P(χ² >= observed) = 1 - CDF(observed)
                 const cdf_excl = this.chiSquaredCDF(chiSqResultExcl.chiSquared, chiSqResultExcl.df);
                 p_value = isNaN(chiSqResultExcl.chiSquared) || chiSqResultExcl.chiSquared < 0
@@ -637,6 +643,7 @@ const MVE_stat_utils = {
             p_value: p_value,
             correl_incl_missing: correl_incl_missing,
             p_incl_missing: p_incl_missing,
+            minRC: minRC,
             nCompleteCases: nCompleteCases,
             missingnessCorrelation: rIxIy,
             nxMissing: nxMissing,
