@@ -321,6 +321,15 @@
             <div style="display: inline-flex; align-items: center; gap: 10px;">
                 <span style="font-size: 14px;">Predictor: Block#</span>
                 <input type="number" id="block-predictor-input" value="1" min="0" max="100000" step="1" style="width: 60px; padding: 3px; border: 1px solid #ccc; border-radius: 3px;" oninput="multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts()">
+                <button 
+                    id="swap-blocks-button" 
+                    onclick="multiVariateExtras_ui.swapBlockNumbers()"
+                    style="background-color: rgba(128, 128, 128, 0.2); border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 4px; cursor: pointer; font-size: 18px; padding: 4px 6px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s;"
+                    onmouseover="this.style.backgroundColor='rgba(128, 128, 128, 0.35)'; this.style.borderColor='rgba(128, 128, 128, 0.6)'"
+                    onmouseout="this.style.backgroundColor='rgba(128, 128, 128, 0.2)'; this.style.borderColor='rgba(128, 128, 128, 0.4)'"
+                    title="Swap predictor and response block numbers">
+                    ⇆
+                </button>
                 <span style="font-size: 14px;">Response: Block#</span>
                 <input type="number" id="block-response-input" value="1" min="0" max="100000" step="1" style="width: 60px; padding: 3px; border: 1px solid #ccc; border-radius: 3px;" oninput="multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts()">
             </div>

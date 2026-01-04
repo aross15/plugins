@@ -359,6 +359,23 @@ const multiVariateExtras_ui = {
     },
 
     /**
+     * Swap the values in the predictor and response block number inputs
+     */
+    swapBlockNumbers: function () {
+        const predictorInput = document.getElementById("block-predictor-input");
+        const responseInput = document.getElementById("block-response-input");
+        
+        if (predictorInput && responseInput) {
+            const tempValue = predictorInput.value;
+            predictorInput.value = responseInput.value;
+            responseInput.value = tempValue;
+            
+            // Trigger the update to refresh the counts
+            this.updateBlocksOfPlotsAttributeCounts();
+        }
+    },
+
+    /**
      * Plot matrix attribute controls section
      */
     plotMatrixAttributeControls: {
