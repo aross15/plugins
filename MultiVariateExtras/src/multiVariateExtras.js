@@ -42,6 +42,7 @@ const multiVariateExtras = {
     plotMatrixHiddenAttributes: new Set(), //  stores attributes hidden in plot matrix context
     correlationHiddenAttributes: new Set(), //  stores attributes hidden in correlation context
     blockNumbers: new Map(), //  stores block number for each attribute (attribute name -> block number)
+    currentRegressionRunID: 0, //  tracks the highest regression run ID used so far
 
     initialize: async function () {
         await connect.initialize();
@@ -1272,10 +1273,103 @@ const multiVariateExtras = {
                     responseAttrName
                 );
 
-                if (result) {
-                    multiVariateExtras.log("Multiple regression completed successfully");
-                } else {
+                if (!result) {
                     multiVariateExtras.warn("Multiple regression failed");
+                    return;
+                }
+
+                multiVariateExtras.log("Multiple regression completed successfully");
+
+                // Initialize the regression results dataset in CODAP
+                multiVariateExtras.log("Initializing regression results dataset...");
+                await pluginHelper.initDataSet(multiVariateExtras.dataSetRegressions);
+                multiVariateExtras.log("Regression results dataset initialized successfully");
+
+                // Get max run.ID from table (if it exists)
+                const maxRunIDFromTable = await multiVariateExtras.utilities.getMaxRegressionRunID();
+                
+                // Calculate new runID: max(internal + 1, maxFromTable + 1, or 1)
+                const newRunID = Math.max(
+                    multiVariateExtras.currentRegressionRunID + 1,
+                    maxRunIDFromTable + 1,
+                    1
+                );
+                
+                // Update internal tracker
+                multiVariateExtras.currentRegressionRunID = newRunID;
+                
+                const runID = newRunID;
+                const dateStr = new Date().toISOString();
+
+                // Build formula strings
+                const rFormulaAttempted = `${responseAttrName} ~ ${predictorAttrNames.join(' + ')}`;
+                const rFormula = rFormulaAttempted; // same for now, could differ if terms were dropped
+
+                // Build FinalFormula with full precision
+                const formulaParts = [`${result.intercept.toPrecision(15)}`];
+                for (let i = 0; i < result.predictorNames.length; i++) {
+                    const coef = result.coefficients[i];
+                    const sign = coef >= 0 ? '+' : '';
+                    formulaParts.push(`${sign}${coef.toPrecision(15)}*${result.predictorNames[i]}`);
+                }
+                const finalFormula = `Predicted ${responseAttrName} = ${formulaParts.join(' ')}`;
+
+                // Determine note based on convergence
+                const note = (result.nIterations >= result.maxIter) 
+                    ? "WARNING! Don't trust these coefficients, since the computation did not converge before using all allowed iterations."
+                    : "";
+
+                // Create base row data (shared summary statistics)
+                const baseRow = {
+                    "TableName": multiVariateExtras.datasetInfo.title,
+                    "Response": responseAttrName,
+                    "r.squared": result.rSquared,
+                    "adj.r.squared": result.adjRSquared,
+                    "sigma": result.sigma,
+                    "df": result.df,
+                    "df.residual": result.dfResidual,
+                    "nobs.complete": result.nobsComplete,
+                    "nobs.original": result.nobsOriginal,
+                    "iterations": result.nIterations,
+                    "max_allowed_iterations": result.maxIter,
+                    "note": note,
+                    "num.terms": result.numTerms,
+                    "r.formula": rFormula,
+                    "run.ID": runID,
+                    "date": dateStr,
+                    "FinalFormula": finalFormula,
+                    "num.terms.attempted": predictorAttrNames.length + 1,
+                    "r.formula.attempted": rFormulaAttempted
+                };
+
+                const iCallback = undefined;
+                const rows = [];
+
+                // Intercept row
+                rows.push({
+                    ...baseRow,
+                    "term": "(Intercept)",
+                    "estimate": result.intercept
+                });
+
+                // Coefficient rows
+                for (let i = 0; i < result.predictorNames.length; i++) {
+                    rows.push({
+                        ...baseRow,
+                        "term": result.predictorNames[i],
+                        "estimate": result.coefficients[i]
+                    });
+                }
+
+                // Insert all rows into the table
+                try {
+                    for (const row of rows) {
+                        await pluginHelper.createItems(row, multiVariateExtras.dataSetRegressions.name, iCallback);
+                    }
+                    multiVariateExtras.log(`Created ${rows.length} regression result rows`);
+                } catch (error) {
+                    multiVariateExtras.error(`Failed to create regression result rows: ${error}`);
+                    console.error("Full error details:", error);
                 }
 
             } catch (error) {
@@ -1641,7 +1735,95 @@ const multiVariateExtras = {
         ]
     },
 
+    /**
+     * Constant object CODAP uses to initialize the regression results dataset
+     * @type {{name: string, title: string, description: string, collections: [*]}}
+     */
+    dataSetRegressions: {
+        name: "regression_results",
+        title: "regression_results",
+        description: "table of regression results",
+        collections: [
+            {
+                name: "regression_results",
+                parent: null,
+                labels: {
+                    singleCase: "regression_result",
+                    pluralCase: "regression_results",
+                    setOfCasesWithArticle: "set of regression_results"
+                },
+                attrs: [
+                    {name: "TableName", type: 'categorical', description: ""},
+                    {name: "Response", type: 'categorical', description: ""},
+                    {name: "term", type: 'categorical', description: "predictor name or (Intercept)"},
+                    {name: "estimate", type: 'numeric', precision: 12, description: "coefficient value"},
+                    {name: "r.squared", type: 'numeric', precision: 8, description: "R-squared"},
+                    {name: "adj.r.squared", type: 'numeric', precision: 8, description: "Adjusted R-squared"},
+                    {name: "sigma", type: 'numeric', precision: 8, description: "standard deviation of residuals"},
+                    {name: "df", type: 'numeric', description: "degrees of freedom for model"},
+                    {name: "df.residual", type: 'numeric', description: "degrees of freedom for residuals"},
+                    {name: "nobs.complete", type: 'numeric', description: "number of complete cases used"},
+                    {name: "nobs.original", type: 'numeric', description: "total number of cases"},
+                    {name: "iterations", type: 'numeric', description: "number of major iterations performed"},
+                    {name: "max_allowed_iterations", type: 'numeric', description: "maximum number of iterations allowed"},
+                    {name: "note", type: 'categorical', description: "warning if computation did not converge"},
+                    {name: "num.terms", type: 'numeric', description: "number of terms in model (including intercept)"},
+                    {name: "r.formula", type: 'categorical', description: "formula in R format"},
+                    {name: "run.ID", type: 'numeric', description: "unique identifier for this regression run"},
+                    {name: "date", type: 'categorical', description: "date and time regression was run"},
+                    {name: "FinalFormula", type: 'categorical', description: "readable formula with full precision coefficients"},
+                    {name: "num.terms.attempted", type: 'numeric', description: "number of terms attempted"},
+                    {name: "r.formula.attempted", type: 'categorical', description: "formula attempted in R format"}
+                ]
+            }
+        ]
+    },
+
     utilities: {
+
+        /**
+         * Gets the maximum run.ID from the regression_results table
+         * @returns {Promise<number>} Maximum run.ID found, or 0 if table doesn't exist or is empty
+         */
+        getMaxRegressionRunID: async function() {
+            try {
+                const tableName = multiVariateExtras.dataSetRegressions.name;
+                const collectionName = "regression_results"; // The collection name in the table
+                
+                // Try to get all cases from the regression_results table
+                const tMessage = {
+                    action: "get",
+                    resource: `dataContext[${tableName}].collection[${collectionName}].allCases`,
+                };
+                const tAllCasesResult = await codapInterface.sendRequest(tMessage);
+                
+                if (!tAllCasesResult.success || !tAllCasesResult.values || !tAllCasesResult.values.cases) {
+                    return 0;
+                }
+                
+                const cases = tAllCasesResult.values.cases;
+                if (cases.length === 0) {
+                    return 0;
+                }
+                
+                let maxRunID = 0;
+                for (const aCase of cases) {
+                    const runID = aCase.case.values["run.ID"];
+                    if (runID !== null && runID !== undefined && !isNaN(runID)) {
+                        const runIDNum = parseFloat(runID);
+                        if (runIDNum > maxRunID) {
+                            maxRunID = runIDNum;
+                        }
+                    }
+                }
+                
+                return maxRunID;
+            } catch (error) {
+                // Table doesn't exist yet or error occurred
+                multiVariateExtras.log(`Could not get max run.ID from regression table: ${error}`);
+                return 0;
+            }
+        },
 
         /**
          * Gets the created graphs for a specific dataset

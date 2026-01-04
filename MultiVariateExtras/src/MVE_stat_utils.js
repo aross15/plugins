@@ -1456,12 +1456,82 @@ const MVE_stat_utils = {
         }
         console.log(`runMultipleRegression: Completed in ${descentResult.nIterations} major iterations, converged: ${descentResult.converged}`);
 
+        // Compute additional statistics: residuals, SSE, SST, R-squared, adjusted R-squared, sigma
+        const nRows = matrixResult.nRows;
+        const nPredictors = predictorAttrNames.length;
+        const numTerms = nPredictors + 1; // including intercept
+        const df = numTerms;
+        const dfResidual = nRows - numTerms;
+
+        // Compute predicted values and residuals
+        let sumSquaredErrors = 0; // SSE
+        let sumSquaredTotal = 0; // SST
+        const yMean = centeredResult.yMean;
+
+        // Compute SSE and SST
+        for (let i = 0; i < nRows; i++) {
+            // Predicted value: intercept + sum(predictor[j] * coefficient[j])
+            let predicted = intercept;
+            for (let j = 0; j < nPredictors; j++) {
+                // Use original (non-centered) predictor values
+                predicted += matrixResult.modelMatrix[j][i] * descentResult.coefficients[j];
+            }
+            
+            // Actual y value (original, non-centered)
+            const actual = matrixResult.yVector[i];
+            
+            // Residual
+            const residual = actual - predicted;
+            sumSquaredErrors += residual * residual;
+            
+            // Deviation from mean (for SST)
+            const deviationFromMean = actual - yMean;
+            sumSquaredTotal += deviationFromMean * deviationFromMean;
+        }
+
+        // Compute R-squared: 1 - (SSE / SST)
+        let rSquared = null;
+        if (sumSquaredTotal > 0) {
+            rSquared = 1 - (sumSquaredErrors / sumSquaredTotal);
+        }
+
+        // Compute adjusted R-squared: 1 - (1 - R²) * ((n - 1) / (n - p - 1))
+        let adjRSquared = null;
+        if (rSquared !== null && dfResidual > 0) {
+            adjRSquared = 1 - (1 - rSquared) * ((nRows - 1) / dfResidual);
+        }
+
+        // Compute sigma (standard deviation of residuals): sqrt(SSE / df.residual)
+        let sigma = null;
+        if (dfResidual > 0) {
+            sigma = Math.sqrt(sumSquaredErrors / dfResidual);
+        }
+
+        console.log(`runMultipleRegression: R-squared: ${rSquared !== null ? rSquared.toFixed(6) : 'null'}`);
+        console.log(`runMultipleRegression: Adjusted R-squared: ${adjRSquared !== null ? adjRSquared.toFixed(6) : 'null'}`);
+        console.log(`runMultipleRegression: sigma: ${sigma !== null ? sigma.toFixed(6) : 'null'}`);
+        console.log(`runMultipleRegression: SSE: ${sumSquaredErrors.toFixed(6)}, SST: ${sumSquaredTotal.toFixed(6)}`);
+
         return {
             intercept: intercept,
             coefficients: descentResult.coefficients,
             predictorNames: predictorAttrNames,
             nIterations: descentResult.nIterations,
-            converged: descentResult.converged
+            maxIter: maxIter,
+            converged: descentResult.converged,
+            // Additional statistics
+            rSquared: rSquared,
+            adjRSquared: adjRSquared,
+            sigma: sigma,
+            df: df,
+            dfResidual: dfResidual,
+            nobsComplete: nRows,
+            nobsOriginal: nRows + matrixResult.excludedRows,
+            numTerms: numTerms,
+            sse: sumSquaredErrors,
+            sst: sumSquaredTotal,
+            // Keep original data for formula construction
+            yMean: yMean
         };
     },
     /* ************************ end of Multiple Regression Functions ************************ */
