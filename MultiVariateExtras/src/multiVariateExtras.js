@@ -1189,6 +1189,102 @@ const multiVariateExtras = {
         },
 
         /**
+         * Handles user click on "Run multiple regression" button in plot matrix tab
+         * Runs multiple regression using visible numeric attributes as predictors
+         * and the legend attribute as the response variable
+         * @returns {Promise<void>}
+         */
+        runMultipleRegression: async function () {
+            console.log("runMultipleRegression");
+            
+            if (!multiVariateExtras.datasetInfo) {
+                multiVariateExtras.warn("No dataset selected for multiple regression");
+                return;
+            }
+
+            try {
+                // Get all attributes with types
+                let attributes = multiVariateExtras.getAttributesWithTypes();
+                
+                // Filter to visible attributes (not in plotMatrixHiddenAttributes)
+                const visibleAttributes = attributes.filter(attr => 
+                    !multiVariateExtras.plotMatrixHiddenAttributes.has(attr.name)
+                );
+                
+                if (visibleAttributes.length === 0) {
+                    multiVariateExtras.warn("No visible attributes available for multiple regression");
+                    return;
+                }
+
+                // Filter to numeric attributes only for predictors
+                const numericPredictors = visibleAttributes.filter(attr => {
+                    const category = MVE_stat_utils.mapAttributeTypeToCategory(attr.type);
+                    return category === "EssentiallyNumeric";
+                });
+
+                if (numericPredictors.length === 0) {
+                    multiVariateExtras.warn("No numeric attributes available as predictors for multiple regression");
+                    return;
+                }
+
+                // Get the response variable from legend attribute dropdown
+                const legendAttributeDropdown = document.getElementById('legend-attribute-dropdown');
+                const responseAttrName = legendAttributeDropdown ? legendAttributeDropdown.value : null;
+
+                if (!responseAttrName || responseAttrName === "") {
+                    multiVariateExtras.warn("No response variable selected. Please select a legend attribute.");
+                    return;
+                }
+
+                // Check if response is numeric
+                const responseAttr = attributes.find(attr => attr.name === responseAttrName);
+                if (!responseAttr) {
+                    multiVariateExtras.warn(`Response attribute "${responseAttrName}" not found in dataset`);
+                    return;
+                }
+
+                const responseCategory = MVE_stat_utils.mapAttributeTypeToCategory(responseAttr.type);
+                if (responseCategory !== "EssentiallyNumeric") {
+                    multiVariateExtras.warn(`Response variable "${responseAttrName}" must be numeric for multiple regression`);
+                    return;
+                }
+
+                // Make sure response is not in predictors
+                const predictorAttrNames = numericPredictors
+                    .filter(attr => attr.name !== responseAttrName)
+                    .map(attr => attr.name);
+
+                if (predictorAttrNames.length === 0) {
+                    multiVariateExtras.warn("No predictor variables available (all numeric attributes are the response variable)");
+                    return;
+                }
+
+                multiVariateExtras.log(`Running multiple regression with ${predictorAttrNames.length} predictors: ${predictorAttrNames.join(', ')}`);
+                multiVariateExtras.log(`Response variable: ${responseAttrName}`);
+
+                // Get all cases
+                const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
+
+                // Run the regression
+                const result = MVE_stat_utils.runMultipleRegression(
+                    allCases,
+                    predictorAttrNames,
+                    responseAttrName
+                );
+
+                if (result) {
+                    multiVariateExtras.log("Multiple regression completed successfully");
+                } else {
+                    multiVariateExtras.warn("Multiple regression failed");
+                }
+
+            } catch (error) {
+                multiVariateExtras.error(`Error running multiple regression: ${error}`);
+                console.error("Full error details:", error);
+            }
+        },
+
+        /**
          * Deletes all block of plots graphs for the current dataset
          * @returns {Promise<void>}
          */

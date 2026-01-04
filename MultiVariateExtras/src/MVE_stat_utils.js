@@ -1157,4 +1157,312 @@ const MVE_stat_utils = {
         return 1 - this.normalCDF(z);
     },
     /* ************************ end of ChatGPT-written code from 2026-01-02 ************************ */
+
+    /* ************************ Multiple Regression Functions ************************ */
+
+    /**
+     * Builds the model matrix (explanatory variables) and y vector (response variable)
+     * from case data, excluding rows with missing values
+     * @param {Object} allCases - Object containing all cases with their values (keyed by case ID)
+     * @param {Array<string>} predictorAttrNames - Array of predictor attribute names
+     * @param {string} responseAttrName - Name of the response attribute
+     * @returns {Object} Object with modelMatrix (column-major), yVector, nRows, nPredictors, excludedRows
+     */
+    buildModelMatrixAndY: function(allCases, predictorAttrNames, responseAttrName) {
+        console.log(`buildModelMatrixAndY: Building model matrix with ${predictorAttrNames.length} predictors`);
+        console.log(`Predictors: ${predictorAttrNames.join(', ')}`);
+        console.log(`Response: ${responseAttrName}`);
+
+        const nPredictors = predictorAttrNames.length;
+        const modelMatrix = []; // Column-major: each column is an array
+        const yVector = [];
+        const validRowIndices = [];
+        let excludedRows = 0;
+
+        // Initialize columns
+        for (let j = 0; j < nPredictors; j++) {
+            modelMatrix.push([]);
+        }
+
+        // First pass: collect all case IDs and check for missing values
+        const caseIds = Object.keys(allCases);
+        
+        for (let i = 0; i < caseIds.length; i++) {
+            const caseId = caseIds[i];
+            const aCase = allCases[caseId];
+            
+            // Check if response is missing
+            const responseVal = aCase.values[responseAttrName];
+            const responseNum = (responseVal === null || responseVal === undefined || responseVal === "") 
+                ? null 
+                : parseFloat(responseVal);
+            
+            if (responseNum === null || isNaN(responseNum)) {
+                excludedRows++;
+                continue;
+            }
+
+            // Check if any predictor is missing
+            let hasMissing = false;
+            const predictorValues = [];
+            
+            for (let j = 0; j < nPredictors; j++) {
+                const attrName = predictorAttrNames[j];
+                const predVal = aCase.values[attrName];
+                const predNum = (predVal === null || predVal === undefined || predVal === "") 
+                    ? null 
+                    : parseFloat(predVal);
+                
+                if (predNum === null || isNaN(predNum)) {
+                    hasMissing = true;
+                    break;
+                }
+                predictorValues.push(predNum);
+            }
+
+            if (hasMissing) {
+                excludedRows++;
+                continue;
+            }
+
+            // Row is valid - add to matrix and y vector
+            for (let j = 0; j < nPredictors; j++) {
+                modelMatrix[j].push(predictorValues[j]);
+            }
+            yVector.push(responseNum);
+            validRowIndices.push(i);
+        }
+
+        const nRows = yVector.length;
+        console.log(`buildModelMatrixAndY: Built model matrix with ${nRows} rows, ${nPredictors} predictors`);
+        console.log(`buildModelMatrixAndY: Excluded ${excludedRows} rows with missing values`);
+
+        return {
+            modelMatrix: modelMatrix,
+            yVector: yVector,
+            nRows: nRows,
+            nPredictors: nPredictors,
+            excludedRows: excludedRows
+        };
+    },
+
+    /**
+     * Centers a column by computing its mean and subtracting the mean from each entry
+     * @param {Array<number>} column - Array of numbers to center
+     * @returns {Object} Object with centeredColumn and mean
+     */
+    centerColumn: function(column) {
+        const n = column.length;
+        if (n === 0) {
+            console.log("centerColumn: Empty column, returning as-is");
+            return { centeredColumn: [], mean: 0 };
+        }
+
+        // Compute mean
+        let sum = 0;
+        for (let i = 0; i < n; i++) {
+            sum += column[i];
+        }
+        const mean = sum / n;
+
+        // Subtract mean from each entry
+        const centeredColumn = [];
+        for (let i = 0; i < n; i++) {
+            centeredColumn.push(column[i] - mean);
+        }
+
+        console.log(`centerColumn: Computed mean = ${mean}, centered ${n} values`);
+        return { centeredColumn: centeredColumn, mean: mean };
+    },
+
+    /**
+     * Centers the model matrix and y vector by subtracting column means
+     * @param {Array<Array<number>>} modelMatrix - Column-major model matrix
+     * @param {Array<number>} yVector - Response vector
+     * @returns {Object} Object with centeredMatrix, centeredY, predictorMeans, yMean
+     */
+    centerModelMatrixAndY: function(modelMatrix, yVector) {
+        console.log("centerModelMatrixAndY: Centering model matrix and y vector");
+
+        const nPredictors = modelMatrix.length;
+        const nRows = yVector.length;
+        const centeredMatrix = [];
+        const predictorMeans = [];
+
+        // Center each predictor column
+        for (let j = 0; j < nPredictors; j++) {
+            const result = this.centerColumn(modelMatrix[j]);
+            centeredMatrix.push(result.centeredColumn);
+            predictorMeans.push(result.mean);
+        }
+
+        // Center y vector
+        const yResult = this.centerColumn(yVector);
+        const centeredY = yResult.centeredColumn;
+        const yMean = yResult.mean;
+
+        console.log(`centerModelMatrixAndY: Centered ${nPredictors} predictor columns and y vector (${nRows} rows)`);
+        console.log(`centerModelMatrixAndY: Predictor means: [${predictorMeans.map(m => m.toFixed(4)).join(', ')}]`);
+        console.log(`centerModelMatrixAndY: Y mean: ${yMean.toFixed(4)}`);
+
+        return {
+            centeredMatrix: centeredMatrix,
+            centeredY: centeredY,
+            predictorMeans: predictorMeans,
+            yMean: yMean
+        };
+    },
+
+    /**
+     * Performs cyclic coordinate descent to solve the least-squares regression problem
+     * @param {Array<Array<number>>} centeredMatrix - Column-major centered model matrix
+     * @param {Array<number>} centeredY - Centered response vector
+     * @param {number} maxIter - Maximum number of major iterations (default 50)
+     * @param {number} convergenceThreshold - Convergence threshold (default 1e-6)
+     * @returns {Object} Object with coefficients, nIterations, converged
+     */
+    cyclicCoordinateDescent: function(centeredMatrix, centeredY, maxIter = 50, convergenceThreshold = 1e-6) {
+        console.log(`cyclicCoordinateDescent: Starting coordinate descent with maxIter=${maxIter}, threshold=${convergenceThreshold}`);
+
+        const nPredictors = centeredMatrix.length;
+        const nRows = centeredY.length;
+        
+        // Initialize coefficients to zero
+        let coefficients = new Array(nPredictors).fill(0);
+        let prevCoefficients = new Array(nPredictors).fill(0);
+        
+        let converged = false;
+        let nIterations = 0;
+
+        for (let majorIter = 0; majorIter < maxIter; majorIter++) {
+            nIterations = majorIter + 1;
+            console.log(`cyclicCoordinateDescent: Major iteration ${nIterations}`);
+
+            // Copy current coefficients for convergence check
+            for (let j = 0; j < nPredictors; j++) {
+                prevCoefficients[j] = coefficients[j];
+            }
+
+            // Minor iterations: update each coefficient
+            for (let j = 0; j < nPredictors; j++) {
+                // Compute residual: r = y - X*beta (excluding current predictor)
+                const residual = [];
+                for (let i = 0; i < nRows; i++) {
+                    let r = centeredY[i];
+                    // Subtract contribution of all predictors except j
+                    for (let k = 0; k < nPredictors; k++) {
+                        if (k !== j) {
+                            r -= centeredMatrix[k][i] * coefficients[k];
+                        }
+                    }
+                    residual.push(r);
+                }
+
+                // Update coefficient: beta_j = (X_j^T * r) / (X_j^T * X_j)
+                let numerator = 0;
+                let denominator = 0;
+                for (let i = 0; i < nRows; i++) {
+                    numerator += centeredMatrix[j][i] * residual[i];
+                    denominator += centeredMatrix[j][i] * centeredMatrix[j][i];
+                }
+
+                if (Math.abs(denominator) > 1e-10) {
+                    const oldBeta = coefficients[j];
+                    coefficients[j] = numerator / denominator;
+                    console.log(`cyclicCoordinateDescent: Minor iteration ${j + 1}/${nPredictors}: beta[${j}] = ${oldBeta.toFixed(6)} -> ${coefficients[j].toFixed(6)}`);
+                } else {
+                    console.log(`cyclicCoordinateDescent: Minor iteration ${j + 1}/${nPredictors}: beta[${j}] unchanged (denominator too small)`);
+                }
+            }
+
+            // Check convergence: max absolute change in any coefficient
+            let maxChange = 0;
+            for (let j = 0; j < nPredictors; j++) {
+                const change = Math.abs(coefficients[j] - prevCoefficients[j]);
+                if (change > maxChange) {
+                    maxChange = change;
+                }
+            }
+
+            console.log(`cyclicCoordinateDescent: Major iteration ${nIterations} complete, max change = ${maxChange.toFixed(10)}`);
+
+            if (maxChange < convergenceThreshold) {
+                converged = true;
+                console.log(`cyclicCoordinateDescent: Converged after ${nIterations} major iterations`);
+                break;
+            }
+        }
+
+        if (!converged) {
+            console.log(`cyclicCoordinateDescent: Did not converge after ${nIterations} major iterations (maxIter=${maxIter})`);
+        }
+
+        return {
+            coefficients: coefficients,
+            nIterations: nIterations,
+            converged: converged
+        };
+    },
+
+    /**
+     * Runs multiple regression using cyclic coordinate descent
+     * @param {Object} allCases - Object containing all cases with their values
+     * @param {Array<string>} predictorAttrNames - Array of predictor attribute names
+     * @param {string} responseAttrName - Name of the response attribute
+     * @param {number} maxIter - Maximum number of major iterations (default 50)
+     * @param {number} convergenceThreshold - Convergence threshold (default 1e-6)
+     * @returns {Object} Object with intercept, coefficients, predictorNames, nIterations, converged
+     */
+    runMultipleRegression: function(allCases, predictorAttrNames, responseAttrName, maxIter = 50, convergenceThreshold = 1e-6) {
+        console.log("runMultipleRegression: Starting multiple regression");
+        console.log(`runMultipleRegression: Predictors: ${predictorAttrNames.join(', ')}`);
+        console.log(`runMultipleRegression: Response: ${responseAttrName}`);
+
+        // Build model matrix and y vector
+        const matrixResult = this.buildModelMatrixAndY(allCases, predictorAttrNames, responseAttrName);
+        
+        if (matrixResult.nRows === 0) {
+            console.error("runMultipleRegression: No valid rows after excluding missing values");
+            return null;
+        }
+
+        if (matrixResult.nRows < matrixResult.nPredictors) {
+            console.error(`runMultipleRegression: Not enough rows (${matrixResult.nRows}) for ${matrixResult.nPredictors} predictors`);
+            return null;
+        }
+
+        // Center the data
+        const centeredResult = this.centerModelMatrixAndY(matrixResult.modelMatrix, matrixResult.yVector);
+
+        // Run coordinate descent
+        const descentResult = this.cyclicCoordinateDescent(
+            centeredResult.centeredMatrix,
+            centeredResult.centeredY,
+            maxIter,
+            convergenceThreshold
+        );
+
+        // Compute intercept: beta_0 = yMean - sum(predictorMeans[i] * coefficients[i])
+        let intercept = centeredResult.yMean;
+        for (let i = 0; i < predictorAttrNames.length; i++) {
+            intercept -= centeredResult.predictorMeans[i] * descentResult.coefficients[i];
+        }
+
+        // Log final results
+        console.log("runMultipleRegression: Final regression coefficients:");
+        console.log(`  Intercept: ${intercept.toFixed(6)}`);
+        for (let i = 0; i < predictorAttrNames.length; i++) {
+            console.log(`  ${predictorAttrNames[i]}: ${descentResult.coefficients[i].toFixed(6)}`);
+        }
+        console.log(`runMultipleRegression: Completed in ${descentResult.nIterations} major iterations, converged: ${descentResult.converged}`);
+
+        return {
+            intercept: intercept,
+            coefficients: descentResult.coefficients,
+            predictorNames: predictorAttrNames,
+            nIterations: descentResult.nIterations,
+            converged: descentResult.converged
+        };
+    },
+    /* ************************ end of Multiple Regression Functions ************************ */
 };
