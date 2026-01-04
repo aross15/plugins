@@ -37,7 +37,7 @@ const multiVariateExtras = {
     theData: {},           //  case-ID-keyed object containing objects with non-formula values for all cases
     selectedCaseIDs: [],   //  the case IDs of the selected cases
 
-    codapVersion: "v2",    //  stores the selected CODAP version (v2 or v3)
+    codapVersion: "v3",    //  stores the selected CODAP version (v2 or v3)
     createdGraphsMap: new Map(), //  stores created graphs by dataset name
     plotMatrixHiddenAttributes: new Set(), //  stores attributes hidden in plot matrix context
     correlationHiddenAttributes: new Set(), //  stores attributes hidden in correlation context
@@ -64,33 +64,6 @@ const multiVariateExtras = {
         // on background click, become selected
         document.querySelector('body').addEventListener('click',
             connect.selectSelf, {capture:true});
-        
-        // Set up CODAP version radio button event handlers
-        this.setupCodapVersionHandlers();
-    },
-
-    /**
-     * Sets up event handlers for the CODAP version radio buttons
-     */
-    setupCodapVersionHandlers: function() {
-        const v2Radio = document.getElementById('version-v2-radio');
-        const v3Radio = document.getElementById('version-v3-radio');
-        
-        if (v2Radio && v3Radio) {
-            v2Radio.addEventListener('change', function() {
-                if (this.checked) {
-                    multiVariateExtras.codapVersion = "v2";
-                    multiVariateExtras.log("CODAP version set to v2");
-                }
-            });
-            
-            v3Radio.addEventListener('change', function() {
-                if (this.checked) {
-                    multiVariateExtras.codapVersion = "v3";
-                    multiVariateExtras.log("CODAP version set to v3");
-                }
-            });
-        }
     },
 
     /**
