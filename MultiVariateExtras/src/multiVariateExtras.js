@@ -1217,17 +1217,6 @@ const multiVariateExtras = {
                     return;
                 }
 
-                // Filter to numeric attributes only for predictors
-                const numericPredictors = visibleAttributes.filter(attr => {
-                    const category = MVE_stat_utils.mapAttributeTypeToCategory(attr.type);
-                    return category === "EssentiallyNumeric";
-                });
-
-                if (numericPredictors.length === 0) {
-                    multiVariateExtras.warn("No numeric attributes available as predictors for multiple regression");
-                    return;
-                }
-
                 // Get the response variable from legend attribute dropdown
                 const legendAttributeDropdown = document.getElementById('legend-attribute-dropdown');
                 const responseAttrName = legendAttributeDropdown ? legendAttributeDropdown.value : null;
@@ -1250,27 +1239,29 @@ const multiVariateExtras = {
                     return;
                 }
 
-                // Make sure response is not in predictors
-                const predictorAttrNames = numericPredictors
+                // Make sure response is not in predictors - pass all visible attributes (including categorical)
+                // MVE_stat_utils will filter out non-numeric predictors internally
+                const predictorAttrNames = visibleAttributes
                     .filter(attr => attr.name !== responseAttrName)
                     .map(attr => attr.name);
 
                 if (predictorAttrNames.length === 0) {
-                    multiVariateExtras.warn("No predictor variables available (all numeric attributes are the response variable)");
+                    multiVariateExtras.warn("No predictor variables available (response variable is the only visible attribute)");
                     return;
                 }
 
-                multiVariateExtras.log(`Running multiple regression with ${predictorAttrNames.length} predictors: ${predictorAttrNames.join(', ')}`);
+                multiVariateExtras.log(`Running multiple regression with ${predictorAttrNames.length} predictors (including categorical): ${predictorAttrNames.join(', ')}`);
                 multiVariateExtras.log(`Response variable: ${responseAttrName}`);
 
                 // Get all cases
                 const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
 
-                // Run the regression
+                // Run the regression - pass all predictors, MVE_stat_utils will filter internally
                 const result = MVE_stat_utils.runMultipleRegression(
                     allCases,
                     predictorAttrNames,
-                    responseAttrName
+                    responseAttrName,
+                    visibleAttributes  // Pass attributes with types for filtering
                 );
 
                 if (!result) {
@@ -1301,9 +1292,9 @@ const multiVariateExtras = {
                 const runID = newRunID;
                 const dateStr = new Date().toISOString();
 
-                // Build formula strings
-                const rFormulaAttempted = `${responseAttrName} ~ ${predictorAttrNames.join(' + ')}`;
-                const rFormula = rFormulaAttempted; // same for now, could differ if terms were dropped
+                // Build formula strings using attempted predictors from result
+                const rFormulaAttempted = `${responseAttrName} ~ ${result.attemptedPredictorNames.join(' + ')}`;
+                const rFormula = `${responseAttrName} ~ ${result.predictorNames.join(' + ')}`;
 
                 // Build FinalFormula with full precision
                 const formulaParts = [`${result.intercept.toPrecision(15)}`];
@@ -1338,7 +1329,7 @@ const multiVariateExtras = {
                     "run.ID": runID,
                     "date": dateStr,
                     "FinalFormula": finalFormula,
-                    "num.terms.attempted": predictorAttrNames.length + 1,
+                    "num.terms.attempted": result.attemptedNumTerms,
                     "r.formula.attempted": rFormulaAttempted
                 };
 

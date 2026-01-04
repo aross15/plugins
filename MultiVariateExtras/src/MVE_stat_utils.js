@@ -1407,19 +1407,56 @@ const MVE_stat_utils = {
     /**
      * Runs multiple regression using cyclic coordinate descent
      * @param {Object} allCases - Object containing all cases with their values
-     * @param {Array<string>} predictorAttrNames - Array of predictor attribute names
+     * @param {Array<string>} predictorAttrNames - Array of predictor attribute names (all requested predictors, including categorical)
      * @param {string} responseAttrName - Name of the response attribute
+     * @param {Array<Object>} attributes - Array of attributes with types for filtering
      * @param {number} maxIter - Maximum number of major iterations (default 50)
      * @param {number} convergenceThreshold - Convergence threshold (default 1e-6)
-     * @returns {Object} Object with intercept, coefficients, predictorNames, nIterations, converged
+     * @returns {Object} Object with intercept, coefficients, predictorNames, nIterations, converged, attemptedPredictorNames, attemptedNumTerms
      */
-    runMultipleRegression: function(allCases, predictorAttrNames, responseAttrName, maxIter = 50, convergenceThreshold = 1e-6) {
+    runMultipleRegression: function(allCases, predictorAttrNames, responseAttrName, attributes, maxIter = 50, convergenceThreshold = 1e-6) {
         console.log("runMultipleRegression: Starting multiple regression");
-        console.log(`runMultipleRegression: Predictors: ${predictorAttrNames.join(', ')}`);
+        console.log(`runMultipleRegression: Requested predictors: ${predictorAttrNames.join(', ')}`);
         console.log(`runMultipleRegression: Response: ${responseAttrName}`);
 
+        // Store attempted predictor names (all requested predictors)
+        const attemptedPredictorNames = [...predictorAttrNames];
+
+        // Create a map of attribute names to types for quick lookup
+        const attrTypeMap = {};
+        attributes.forEach(attr => {
+            attrTypeMap[attr.name] = attr.type;
+        });
+
+        // Filter to only numeric predictors
+        const numericPredictorNames = predictorAttrNames.filter(attrName => {
+            const attrType = attrTypeMap[attrName];
+            if (attrType === undefined) {
+                // Attribute not found in attributes list, skip it
+                console.warn(`runMultipleRegression: Attribute "${attrName}" not found in attributes list, skipping`);
+                return false;
+            }
+            const category = this.mapAttributeTypeToCategory(attrType);
+            const isNumeric = category === "EssentiallyNumeric";
+            if (!isNumeric) {
+                console.log(`runMultipleRegression: Filtering out non-numeric predictor "${attrName}" (type: ${attrType}, category: ${category})`);
+            }
+            return isNumeric;
+        });
+
+        if (numericPredictorNames.length === 0) {
+            console.error("runMultipleRegression: No numeric predictors available after filtering");
+            return null;
+        }
+
+        if (numericPredictorNames.length < predictorAttrNames.length) {
+            console.log(`runMultipleRegression: Filtered ${predictorAttrNames.length - numericPredictorNames.length} non-numeric predictor(s)`);
+        }
+
+        console.log(`runMultipleRegression: Using ${numericPredictorNames.length} numeric predictor(s): ${numericPredictorNames.join(', ')}`);
+
         // Build model matrix and y vector
-        const matrixResult = this.buildModelMatrixAndY(allCases, predictorAttrNames, responseAttrName);
+        const matrixResult = this.buildModelMatrixAndY(allCases, numericPredictorNames, responseAttrName);
         
         if (matrixResult.nRows === 0) {
             console.error("runMultipleRegression: No valid rows after excluding missing values");
@@ -1444,22 +1481,23 @@ const MVE_stat_utils = {
 
         // Compute intercept: beta_0 = yMean - sum(predictorMeans[i] * coefficients[i])
         let intercept = centeredResult.yMean;
-        for (let i = 0; i < predictorAttrNames.length; i++) {
+        for (let i = 0; i < numericPredictorNames.length; i++) {
             intercept -= centeredResult.predictorMeans[i] * descentResult.coefficients[i];
         }
 
         // Log final results
         console.log("runMultipleRegression: Final regression coefficients:");
         console.log(`  Intercept: ${intercept.toFixed(6)}`);
-        for (let i = 0; i < predictorAttrNames.length; i++) {
-            console.log(`  ${predictorAttrNames[i]}: ${descentResult.coefficients[i].toFixed(6)}`);
+        for (let i = 0; i < numericPredictorNames.length; i++) {
+            console.log(`  ${numericPredictorNames[i]}: ${descentResult.coefficients[i].toFixed(6)}`);
         }
         console.log(`runMultipleRegression: Completed in ${descentResult.nIterations} major iterations, converged: ${descentResult.converged}`);
 
         // Compute additional statistics: residuals, SSE, SST, R-squared, adjusted R-squared, sigma
         const nRows = matrixResult.nRows;
-        const nPredictors = predictorAttrNames.length;
+        const nPredictors = numericPredictorNames.length;
         const numTerms = nPredictors + 1; // including intercept
+        const attemptedNumTerms = attemptedPredictorNames.length + 1; // including intercept
         const df = numTerms;
         const dfResidual = nRows - numTerms;
 
@@ -1515,7 +1553,8 @@ const MVE_stat_utils = {
         return {
             intercept: intercept,
             coefficients: descentResult.coefficients,
-            predictorNames: predictorAttrNames,
+            predictorNames: numericPredictorNames, // Actual predictors used (numeric only)
+            attemptedPredictorNames: attemptedPredictorNames, // All predictors that were requested
             nIterations: descentResult.nIterations,
             maxIter: maxIter,
             converged: descentResult.converged,
@@ -1528,6 +1567,7 @@ const MVE_stat_utils = {
             nobsComplete: nRows,
             nobsOriginal: nRows + matrixResult.excludedRows,
             numTerms: numTerms,
+            attemptedNumTerms: attemptedNumTerms,
             sse: sumSquaredErrors,
             sst: sumSquaredTotal,
             // Keep original data for formula construction
