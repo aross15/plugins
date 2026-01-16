@@ -1598,10 +1598,14 @@ const multiVariateExtras = {
                             const plotTypeMessage = {
                                 action: "update",
                                 resource: `component[${componentId}]`,
-                                values: {
-                                    plotType: "barChart",
-                                    plotClass: "barChart"
+                                "values": {
+                                    "pointsAreFusedIntoBars": true
                                 }
+
+                                // values: {
+                                //     plotType: "barChart",
+                                //     plotClass: "barChart"
+                                // }
                             };
                             
                             const plotTypeResult = await codapInterface.sendRequest(plotTypeMessage);
@@ -1612,6 +1616,8 @@ const multiVariateExtras = {
                             }
                             
                             // Then, set breakdownType to percent
+                            // Maybe the API doesn't support it yet, according to Bill Finzer, 2026-01-16.
+                            // He might be creating a feature request for it.
                             const breakdownTypeMessage = {
                                 action: "update",
                                 resource: `component[${componentId}]`,
