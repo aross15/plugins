@@ -442,6 +442,8 @@
         <div class="stripe">
             <div style="text-align: center; font-size: 12px; color: #666; margin-bottom: 20px;">
                 Ensure that each attribute has the correct type before computing the correlations. Attributes with no type listed will be treated as categorical.
+                <br>
+                You can re-order attributes in the list below by dragging their headers left or right in the data table.
             </div>
         </div>
 
@@ -467,13 +469,13 @@
                 id="compute-and-graph-alphabetical-button" 
                 onclick="multiVariateExtras.handlers.computeAndGraphCorrelations('alphabetical')"
                 style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #81C784; color: white; border: none; border-radius: 4px; width: 300px;">
-                compute and graph correlations, alphabetical order
+                compute and graph correlations,<br> alphabetical order
             </button>
             <button 
                 id="compute-and-graph-table-order-button" 
                 onclick="multiVariateExtras.handlers.computeAndGraphCorrelations('table')"
                 style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px; width: 300px;">
-                compute and graph correlations, table attrib. order
+                compute and graph correlations,<br>table attribute order
             </button>
             <button 
                 id="compute-table-button" 
@@ -482,10 +484,16 @@
                 only compute table
             </button>
             <button 
-                id="create-graph-button" 
-                onclick="multiVariateExtras.handlers.graphCorrelationTable()"
+                id="create-graph-alphabetical-button" 
+                onclick="multiVariateExtras.handlers.graphCorrelationTable(null, null, 'alphabetical')"
+                style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #64B5F6; color: white; border: none; border-radius: 4px; width: 300px;">
+                create graph,<br> alphabetical order
+            </button>
+            <button 
+                id="create-graph-table-order-button" 
+                onclick="multiVariateExtras.handlers.graphCorrelationTable(null, null, 'table')"
                 style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #2196F3; color: white; border: none; border-radius: 4px; width: 300px;">
-                create graph
+                create graph,<br>table attribute order
             </button>
         </div>
 
@@ -505,7 +513,9 @@
 
         <div style="text-align: center; font-size: 12px; color: #666; margin-bottom: 20px;">
             Correlation values will be APPENDED to the existing table, rather than replacing it. You should delete the old table before doing more computations, usually.
+            <!-- x
             In the graph, attributes will show in alphabetic order rather than their order in the table, unless you use the table_order_Predictor and table_order_Response attributes.
+            -->
         </div>
 
         <div id="correlation-content" style="min-height: 200px;">
