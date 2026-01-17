@@ -745,8 +745,9 @@ const multiVariateExtras = {
          * Handles user click on "compute and graph correlations" button in correlation tab
          * Creates the table (if needed), creates the graph, then computes correlations
          * so the user can watch the graph populate as computations progress
+         * @param {string} order - Order type: 'alphabetical' (default) or 'table' to use table_order attributes
          */
-        computeAndGraphCorrelations: async function () {
+        computeAndGraphCorrelations: async function (order = 'alphabetical') {
             if (!multiVariateExtras.datasetInfo) {
                 multiVariateExtras.warn("No dataset selected for correlation analysis");
                 return;
@@ -759,8 +760,8 @@ const multiVariateExtras = {
                 await multiVariateExtras.handlers.initializeCorrelationTable();
 
                 // Step 2: Create the graph (so user can watch it populate)
-                multiVariateExtras.log("Creating correlation graph...");
-                await multiVariateExtras.handlers.graphCorrelationTable();
+                multiVariateExtras.log(`Creating correlation graph with ${order} order...`);
+                await multiVariateExtras.handlers.graphCorrelationTable(null, null, order);
                 multiVariateExtras.log("Correlation graph created successfully");
 
                 // Step 3: Compute and populate correlations (this will populate the graph as it runs)
@@ -808,11 +809,13 @@ const multiVariateExtras = {
          * Creates a scatter plot graph for correlation visualization using the correlation dataset
          * @param {Object} position - Optional position object with x, y coordinates (if not provided, will be calculated relative to plugin window)
          * @param {Object} dimensions - Optional dimensions object with width, height
+         * @param {string} order - Optional order type: 'alphabetical' (default) or 'table' to use table_order attributes
          * @returns {Promise} - Promise that resolves with the component ID if successful
          */
-        graphCorrelationTable: async function (position = null, dimensions = null) {
+        graphCorrelationTable: async function (position = null, dimensions = null, order = 'alphabetical') {
             console.log("graphCorrelationTable");
             console.log(position);
+            console.log("order:", order);
             // Check if the correlation dataset exists
             const correlationDatasetName = multiVariateExtras.dataSetCorrelations.name;
             
@@ -839,11 +842,15 @@ const multiVariateExtras = {
                     multiVariateExtras.log("m position is provided", position);
                 }
 
+                // Determine which attributes to use based on order parameter
+                const predictorAttr = order === 'table' ? "table_order_Predictor" : "Predictor";
+                const responseAttr = order === 'table' ? "table_order_Response" : "Response";
+
                 // Create a scatter plot using the correlation dataset with correlation as legend
                 const result = await connect.createGraph(
                     correlationDatasetName,
-                    "Predictor",
-                    "Response",
+                    predictorAttr,
+                    responseAttr,
                     "correlation",
  //                   calculatedPosition,
  //                   dimensions
