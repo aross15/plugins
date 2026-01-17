@@ -445,6 +445,15 @@ const multiVariateExtras_ui = {
          * Install the plot matrix attribute controls
          */
         install: function () {
+            // If the hidden set is empty (new dataset), add all attributes to it by default
+            // so that attributes are "not used" by default
+            if (multiVariateExtras.plotMatrixHiddenAttributes.size === 0) {
+                const attributes = multiVariateExtras.getAttributesWithTypes();
+                attributes.forEach(attr => {
+                    multiVariateExtras.plotMatrixHiddenAttributes.add(attr.name);
+                });
+            }
+            
             const tbody = document.getElementById(this.tbodyID);
             if (tbody) {
                 tbody.innerHTML = this.make();
@@ -487,10 +496,10 @@ const multiVariateExtras_ui = {
          * @returns {string} HTML for one table row
          */
         makeOneAttributeRow: function (attr) {
-            // Get the current block number for this attribute, default to 1
+            // Get the current block number for this attribute, default to 0
             const currentBlockNumber = multiVariateExtras.blockNumbers.has(attr.name) 
                 ? multiVariateExtras.blockNumbers.get(attr.name) 
-                : 1;
+                : 0;
 
             return `<tr>
                 <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">
