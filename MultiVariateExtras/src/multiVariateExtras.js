@@ -442,65 +442,61 @@ const multiVariateExtras = {
         },
 
         /**
-         * Handles user click on "compute table" button in correlation tab
-         * Computes pairwise correlation values and records the results
+         * Initializes the correlation dataset in CODAP without populating it
          */
-        computeCorrelationTable: async function () {
-            if (!multiVariateExtras.datasetInfo) {
-                multiVariateExtras.warn("No dataset selected for correlation analysis");
+        initializeCorrelationTable: async function () {
+            multiVariateExtras.log("Initializing correlation dataset...");
+            await pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
+            multiVariateExtras.log("Correlation dataset initialized successfully");
+        },
+
+        /**
+         * Prepares data structures and computes correlations, populating the correlation table
+         * @param {Function} iCallback - Optional callback function
+         */
+        computeCorrelations: async function (iCallback = undefined) {
+            // Create a mapping of attribute names to their order in the table
+            const attributeOrderMap = new Map();
+            let attributeCounter = 1;
+            
+            // First pass: build the order mapping
+            for (const coll of multiVariateExtras.datasetInfo.collections) {
+                for (const attr of coll.attrs) {
+                    attributeOrderMap.set(attr.name, attributeCounter++);
+                }
+            }
+
+            // Filter out hidden attributes for correlation analysis
+            const visibleAttributes = [];
+            for (const coll of multiVariateExtras.datasetInfo.collections) {
+                for (const attr of coll.attrs) {
+                    if (!multiVariateExtras.correlationHiddenAttributes.has(attr.name)) {
+                        visibleAttributes.push(attr);
+                    }
+                }
+            }
+
+            if (visibleAttributes.length === 0) {
+                multiVariateExtras.warn("No attributes available for correlation analysis (all attributes are hidden)");
                 return;
             }
 
-            const iCallback = undefined;
+            multiVariateExtras.log(`Computing correlations for ${visibleAttributes.length} visible attributes: ${visibleAttributes.map(a => a.name).join(', ')}`);
 
-            try {
-                // Initialize the correlation dataset in CODAP
-                multiVariateExtras.log("Initializing correlation dataset...");
-                await pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
-                multiVariateExtras.log("Correlation dataset initialized successfully");
+            const nCases = await connect.getItemCountFrom(multiVariateExtras.datasetInfo.name);
+            
+            // Get all cases
+            multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.title}`);
+            const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
+            multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
 
-                // Create a mapping of attribute names to their order in the table
-                const attributeOrderMap = new Map();
-                let attributeCounter = 1;
-                
-                // First pass: build the order mapping
-                for (const coll of multiVariateExtras.datasetInfo.collections) {
-                    for (const attr of coll.attrs) {
-                        attributeOrderMap.set(attr.name, attributeCounter++);
-                    }
-                }
+            // Check which NPCR option is selected
+            const npcrLeaveBlankRadio = document.getElementById('npcr-leave-blank-radio');
+            const npcrUseEtaRadio = document.getElementById('npcr-use-eta-radio');
+            const useEtaForNPCR = npcrUseEtaRadio ? npcrUseEtaRadio.checked : false;
+            multiVariateExtras.log(`NPCR option: ${useEtaForNPCR ? 'Use eta as if CPNR' : 'Leave blank'}`);
 
-                // Filter out hidden attributes for correlation analysis
-                const visibleAttributes = [];
-                for (const coll of multiVariateExtras.datasetInfo.collections) {
-                    for (const attr of coll.attrs) {
-                        if (!multiVariateExtras.correlationHiddenAttributes.has(attr.name)) {
-                            visibleAttributes.push(attr);
-                        }
-                    }
-                }
-
-                if (visibleAttributes.length === 0) {
-                    multiVariateExtras.warn("No attributes available for correlation analysis (all attributes are hidden)");
-                    return;
-                }
-
-                multiVariateExtras.log(`Computing correlations for ${visibleAttributes.length} visible attributes: ${visibleAttributes.map(a => a.name).join(', ')}`);
-
-                const nCases = await connect.getItemCountFrom(multiVariateExtras.datasetInfo.name);
-                
-                // Get all cases
-                multiVariateExtras.log(`Getting cases from dataset: ${multiVariateExtras.datasetInfo.title}`);
-                const allCases = await connect.getAllCasesFrom(multiVariateExtras.datasetInfo.name);
-                multiVariateExtras.log(`Retrieved ${Object.keys(allCases).length} cases`);
-    
-                // Check which NPCR option is selected
-                const npcrLeaveBlankRadio = document.getElementById('npcr-leave-blank-radio');
-                const npcrUseEtaRadio = document.getElementById('npcr-use-eta-radio');
-                const useEtaForNPCR = npcrUseEtaRadio ? npcrUseEtaRadio.checked : false;
-                multiVariateExtras.log(`NPCR option: ${useEtaForNPCR ? 'Use eta as if CPNR' : 'Leave blank'}`);
-
-                // Loop through visible attributes and compute correlations
+            // Loop through visible attributes and compute correlations
                 
                 for (const attr1 of visibleAttributes) {
                     const attr_name1 = attr1["name"];
@@ -719,8 +715,58 @@ const multiVariateExtras = {
                 }
 
                 multiVariateExtras.log("Correlation table computation completed");
+        },
+
+        /**
+         * Handles user click on "compute table" button in correlation tab
+         * Computes pairwise correlation values and records the results
+         */
+        computeCorrelationTable: async function () {
+            if (!multiVariateExtras.datasetInfo) {
+                multiVariateExtras.warn("No dataset selected for correlation analysis");
+                return;
+            }
+
+            const iCallback = undefined;
+
+            try {
+                // Initialize the correlation dataset
+                await multiVariateExtras.handlers.initializeCorrelationTable();
+
+                // Compute and populate correlations
+                await multiVariateExtras.handlers.computeCorrelations(iCallback);
             } catch (error) {
                 multiVariateExtras.error(`Error in computeCorrelationTable: ${error}`);
+                console.error("Full error details:", error);
+            }
+        },
+
+        /**
+         * Handles user click on "compute and graph correlations" button in correlation tab
+         * Creates the table (if needed), creates the graph, then computes correlations
+         * so the user can watch the graph populate as computations progress
+         */
+        computeAndGraphCorrelations: async function () {
+            if (!multiVariateExtras.datasetInfo) {
+                multiVariateExtras.warn("No dataset selected for correlation analysis");
+                return;
+            }
+
+            const iCallback = undefined;
+
+            try {
+                // Step 1: Initialize the correlation dataset
+                await multiVariateExtras.handlers.initializeCorrelationTable();
+
+                // Step 2: Create the graph (so user can watch it populate)
+                multiVariateExtras.log("Creating correlation graph...");
+                await multiVariateExtras.handlers.graphCorrelationTable();
+                multiVariateExtras.log("Correlation graph created successfully");
+
+                // Step 3: Compute and populate correlations (this will populate the graph as it runs)
+                await multiVariateExtras.handlers.computeCorrelations(iCallback);
+            } catch (error) {
+                multiVariateExtras.error(`Error in computeAndGraphCorrelations: ${error}`);
                 console.error("Full error details:", error);
             }
         },
