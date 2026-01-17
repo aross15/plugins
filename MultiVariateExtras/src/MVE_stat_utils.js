@@ -121,8 +121,34 @@ const MVE_stat_utils = {
         });
 
         // Final Pearson correlations
-        const rXy = (Sx > 0 && Sy > 0) ? Sxy / Math.sqrt(Sx * Sy) : NaN;
-        const rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
+        let rXy = (Sx > 0 && Sy > 0) ? Sxy / Math.sqrt(Sx * Sy) : NaN;
+        let rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
+        
+        // Guard against roundoff error: clamp to [-1, 1]
+        // Values slightly outside [-1, 1] could happen due to roundoff error and are not worrisome,
+        // so we aren't throwing an error, just logging it and gracefully fixing it.
+        if (!isNaN(rXy)) {
+            if (rXy > 1.0) {
+                console.log("Pearson correlation value above 1.0:", rXy);
+                console.log("log10(current value - 1):", Math.log10(rXy - 1));
+                rXy = 1.0;
+            } else if (rXy < -1.0) {
+                console.log("Pearson correlation value below -1.0:", rXy);
+                console.log("log10(abs(current value + 1)):", Math.log10(Math.abs(rXy + 1)));
+                rXy = -1.0;
+            }
+        }
+        if (!isNaN(rIxIy)) {
+            if (rIxIy > 1.0) {
+                console.log("Missingness correlation value above 1.0:", rIxIy);
+                console.log("log10(current value - 1):", Math.log10(rIxIy - 1));
+                rIxIy = 1.0;
+            } else if (rIxIy < -1.0) {
+                console.log("Missingness correlation value below -1.0:", rIxIy);
+                console.log("log10(abs(current value + 1)):", Math.log10(Math.abs(rIxIy + 1)));
+                rIxIy = -1.0;
+            }
+        }
 
         // n here is n_neithermissing
         return {
@@ -321,7 +347,22 @@ const MVE_stat_utils = {
         });
 
         // Final missingness correlation
-        const rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
+        let rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
+        
+        // Guard against roundoff error: clamp to [-1, 1]
+        // Values slightly outside [-1, 1] could happen due to roundoff error and are not worrisome,
+        // so we aren't throwing an error, just logging it and gracefully fixing it.
+        if (!isNaN(rIxIy)) {
+            if (rIxIy > 1.0) {
+                console.log("Missingness correlation value above 1.0:", rIxIy);
+                console.log("log10(current value - 1):", Math.log10(rIxIy - 1));
+                rIxIy = 1.0;
+            } else if (rIxIy < -1.0) {
+                console.log("Missingness correlation value below -1.0:", rIxIy);
+                console.log("log10(abs(current value + 1)):", Math.log10(Math.abs(rIxIy + 1)));
+                rIxIy = -1.0;
+            }
+        }
 
         // Convert category stats to arrays for computeANOVAFromSummary
         // Compute variance for each category: variance = S / count (using denominator n_i, not n_i-1)
@@ -464,7 +505,23 @@ const MVE_stat_utils = {
         if (denominator <= 0) {
             return NaN;
         }
-        return Math.sqrt(chiSquared / denominator);
+        let value = Math.sqrt(chiSquared / denominator);
+        
+        // Guard against roundoff error: clamp to [0, 1]
+        // We've seen values slightly above 1.0 (such as 1.0 + 1e-15) happen when an attribute
+        // is both the predictor and response. This is just roundoff error and is not worrisome,
+        // so we aren't throwing an error, just logging it and gracefully fixing it.
+        if (value > 1.0) {
+            console.log("Cramer's V value above 1.0:", value);
+            console.log("log10(current value - 1):", Math.log10(value - 1));
+            value = 1.0;
+        } else if (value < 0) {
+            console.log("Cramer's V value below 0:", value);
+            console.log("log10(abs(current value)):", Math.log10(Math.abs(value)));
+            value = 0;
+        }
+        
+        return value;
     },
 
     /**
@@ -552,7 +609,22 @@ const MVE_stat_utils = {
         });
 
         // Final missingness correlation
-        const rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
+        let rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
+        
+        // Guard against roundoff error: clamp to [-1, 1]
+        // Values slightly outside [-1, 1] could happen due to roundoff error and are not worrisome,
+        // so we aren't throwing an error, just logging it and gracefully fixing it.
+        if (!isNaN(rIxIy)) {
+            if (rIxIy > 1.0) {
+                console.log("Missingness correlation value above 1.0:", rIxIy);
+                console.log("log10(current value - 1):", Math.log10(rIxIy - 1));
+                rIxIy = 1.0;
+            } else if (rIxIy < -1.0) {
+                console.log("Missingness correlation value below -1.0:", rIxIy);
+                console.log("log10(abs(current value + 1)):", Math.log10(Math.abs(rIxIy + 1)));
+                rIxIy = -1.0;
+            }
+        }
 
         // Convert sets to arrays for processing
         const rowCategoriesIncl = Array.from(rowCategoriesSet);
@@ -710,7 +782,22 @@ const MVE_stat_utils = {
         });
 
         // Final missingness correlation
-        const rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
+        let rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
+        
+        // Guard against roundoff error: clamp to [-1, 1]
+        // Values slightly outside [-1, 1] could happen due to roundoff error and are not worrisome,
+        // so we aren't throwing an error, just logging it and gracefully fixing it.
+        if (!isNaN(rIxIy)) {
+            if (rIxIy > 1.0) {
+                console.log("Missingness correlation value above 1.0:", rIxIy);
+                console.log("log10(current value - 1):", Math.log10(rIxIy - 1));
+                rIxIy = 1.0;
+            } else if (rIxIy < -1.0) {
+                console.log("Missingness correlation value below -1.0:", rIxIy);
+                console.log("log10(abs(current value + 1)):", Math.log10(Math.abs(rIxIy + 1)));
+                rIxIy = -1.0;
+            }
+        }
 
         // n here is n_neithermissing (placeholder since we're not computing actual correlation yet)
         const n = 0;
@@ -784,7 +871,22 @@ const MVE_stat_utils = {
         });
 
         // Final missingness correlation
-        const rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
+        let rIxIy = (SixMissing > 0 && SiyMissing > 0) ? SixyMissing / Math.sqrt(SixMissing * SiyMissing) : NaN;
+        
+        // Guard against roundoff error: clamp to [-1, 1]
+        // Values slightly outside [-1, 1] could happen due to roundoff error and are not worrisome,
+        // so we aren't throwing an error, just logging it and gracefully fixing it.
+        if (!isNaN(rIxIy)) {
+            if (rIxIy > 1.0) {
+                console.log("Missingness correlation value above 1.0:", rIxIy);
+                console.log("log10(current value - 1):", Math.log10(rIxIy - 1));
+                rIxIy = 1.0;
+            } else if (rIxIy < -1.0) {
+                console.log("Missingness correlation value below -1.0:", rIxIy);
+                console.log("log10(abs(current value + 1)):", Math.log10(Math.abs(rIxIy + 1)));
+                rIxIy = -1.0;
+            }
+        }
 
         // n here is n_neithermissing (placeholder since we're not computing actual correlation yet)
         const n = 0;
@@ -1103,7 +1205,20 @@ const MVE_stat_utils = {
         const MS_within = safeDivide(SS_within, DF_within);
 
         const F = safeDivide(MS_between, MS_within);
-        const eta_squared = safeDivide(SS_between, SS_total);
+        let eta_squared = safeDivide(SS_between, SS_total);
+        
+        // Guard against roundoff error: clamp to [0, 1]
+        // Values slightly above 1.0 are likely roundoff error and not worrisome,
+        // so we aren't throwing an error, just logging it and gracefully fixing it.
+        if (eta_squared > 1.0) {
+            console.log("eta-squared value above 1.0:", eta_squared);
+            console.log("log10(current value - 1):", Math.log10(eta_squared - 1));
+            eta_squared = 1.0;
+        } else if (eta_squared < 0) {
+            console.log("eta-squared value below 0:", eta_squared);
+            console.log("log10(abs(current value)):", Math.log10(Math.abs(eta_squared)));
+            eta_squared = 0;
+        }
 
         // ---------- F-distribution p-value ----------
 
