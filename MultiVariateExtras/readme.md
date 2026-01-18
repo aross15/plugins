@@ -1,10 +1,10 @@
 # MultiVariateExtras
 
+The URL you need to give to CODAP to install the plugin is: https://aross15.github.io/plugins/MultiVariateExtras/
+
 ## "dataset" tab
 
 On this tab, you can choose which table of data you want to use. You can also see how many cases and attributes are selected.
-
-The selector button for codap v2 versus v3 is currently ignored. 
 
 ### "Plot Matrix" tab
 
