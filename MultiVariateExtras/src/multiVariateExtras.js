@@ -651,7 +651,9 @@ const multiVariateExtras = {
                                 correlBlanks = null;
                             }
                         } else {
-                            correlationType = "MissingCorr";
+                            // we might get here if an attribute type is Boundary or Color or some other difficult-to-handle type
+                            // that isn't purely numeric or purely categorical.
+                            correlationType = "none";
                             
                             try {
                                 const correlationResults = multiVariateExtras.correlationUtils.ComputeMissingCorr(allCases, attr_name1, attr_name2);

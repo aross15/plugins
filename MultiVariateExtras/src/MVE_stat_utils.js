@@ -892,7 +892,7 @@ const MVE_stat_utils = {
         const n = 0;
 
         return {
-            correlation: -999, // Placeholder value since missing correlation computation not implemented yet
+            correlation: null, // Return blank instead of -999
             nCompleteCases: n,
             missingnessCorrelation: rIxIy,
             nxMissing: nxMissing,
