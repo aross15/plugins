@@ -451,7 +451,7 @@ const multiVariateExtras = {
         },
 
         /**
-         * Prepares data structures and computes correlations, populating the correlation table
+         * Prepares data structures and computes associations, populating the association table
          * @param {Function} iCallback - Optional callback function
          */
         computeAssociations: async function (iCallback = undefined) {
@@ -466,7 +466,7 @@ const multiVariateExtras = {
                 }
             }
 
-            // Filter out hidden attributes for correlation analysis
+            // Filter out hidden attributes for association analysis
             const visibleAttributes = [];
             for (const coll of multiVariateExtras.datasetInfo.collections) {
                 for (const attr of coll.attrs) {
@@ -477,7 +477,7 @@ const multiVariateExtras = {
             }
 
             if (visibleAttributes.length === 0) {
-                multiVariateExtras.warn("No attributes available for correlation analysis (all attributes are hidden)");
+                multiVariateExtras.warn("No attributes available for association analysis (all attributes are hidden)");
                 return;
             }
 
@@ -720,12 +720,12 @@ const multiVariateExtras = {
         },
 
         /**
-         * Handles user click on "compute table" button in correlation tab
+         * Handles user click on "compute table" button in association measures tab
          * Computes pairwise association values and records the results
          */
         computeAssocTable: async function () {
             if (!multiVariateExtras.datasetInfo) {
-                multiVariateExtras.warn("No dataset selected for correlation analysis");
+                multiVariateExtras.warn("No dataset selected for association analysis");
                 return;
             }
 
@@ -744,14 +744,14 @@ const multiVariateExtras = {
         },
 
         /**
-         * Handles user click on "compute and graph associations" button in correlation tab
+         * Handles user click on "compute and graph associations" button in association measures tab
          * Creates the table (if needed), creates the graph, then computes associations
          * so the user can watch the graph populate as computations progress
          * @param {string} order - Order type: 'alphabetical' (default) or 'table' to use table_order attributes
          */
         computeAndGraphAssoc: async function (order = 'alphabetical') {
             if (!multiVariateExtras.datasetInfo) {
-                multiVariateExtras.warn("No dataset selected for correlation analysis");
+                multiVariateExtras.warn("No dataset selected for association analysis");
                 return;
             }
 
@@ -807,7 +807,7 @@ const multiVariateExtras = {
         },
 
         /**
-         * Handles user click on "create graph" button in correlation tab
+         * Handles user click on "create graph" button in association measures tab
          * Creates a scatter plot graph for association visualization using the association dataset
          * @param {Object} position - Optional position object with x, y coordinates (if not provided, will be calculated relative to plugin window)
          * @param {Object} dimensions - Optional dimensions object with width, height
@@ -1180,7 +1180,7 @@ const multiVariateExtras = {
         },
 
         /**
-         * Handles user press of a visibility button for a single attribute in the correlation tab
+         * Handles user press of a visibility button for a single attribute in the association measures tab
          *
          * @param iAttName - The name of the attribute
          * @param iHidden - Whether the attribute is currently hidden
@@ -1738,7 +1738,7 @@ const multiVariateExtras = {
     },
 
     /**
-     * Utility functions for correlation analysis
+     * Utility functions for association analysis
      * These are now provided by MVE_stat_utils.js and assigned here for backward compatibility
      */
     correlationUtils: (typeof MVE_stat_utils !== 'undefined') ? MVE_stat_utils : {},
