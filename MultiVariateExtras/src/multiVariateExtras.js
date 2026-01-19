@@ -442,19 +442,19 @@ const multiVariateExtras = {
         },
 
         /**
-         * Initializes the correlation dataset in CODAP without populating it
+         * Initializes the association dataset in CODAP without populating it
          */
-        initializeCorrelationTable: async function () {
-            multiVariateExtras.log("Initializing correlation dataset...");
-            await pluginHelper.initDataSet(multiVariateExtras.dataSetCorrelations);
-            multiVariateExtras.log("Correlation dataset initialized successfully");
+        initializeAssocTable: async function () {
+            multiVariateExtras.log("Initializing association dataset...");
+            await pluginHelper.initDataSet(multiVariateExtras.dataSetAssoc);
+            multiVariateExtras.log("Association dataset initialized successfully");
         },
 
         /**
          * Prepares data structures and computes correlations, populating the correlation table
          * @param {Function} iCallback - Optional callback function
          */
-        computeCorrelations: async function (iCallback = undefined) {
+        computeAssociations: async function (iCallback = undefined) {
             // Create a mapping of attribute names to their order in the table
             const attributeOrderMap = new Map();
             let attributeCounter = 1;
@@ -671,14 +671,14 @@ const multiVariateExtras = {
                             }
                         }
 
-                        // Create the correlation case data
-                        const correlationCase = {
+                        // Create the association case data
+                        const assocCase = {
                             "TableName": multiVariateExtras.datasetInfo.title, // .title is better than .name since
                             // .name is sometimes something the user can't see, like 157USrollercoasters
                             "Predictor": attr_name1,
                             "Response": attr_name2,
-                            "correlation": correlationResult,
-                            "correlationType": correlationType,
+                            "assoc_measure": correlationResult,
+                            "assoc_measure_type": correlationType,
                             "nNeitherMissing": nCompleteCases,
                             "nCases": nCases,
                             "nBlanks1": nBlanks1_actual,
@@ -687,7 +687,7 @@ const multiVariateExtras = {
                             "CI_low95": CI_low95,
                             "CI_high95": CI_high95,
                             "p_value": p_value,
-                            "correl_incl_missing": correl_incl_missing,
+                            "assoc_measure_incl_missing": correl_incl_missing,
                             "p_incl_missing": p_incl_missing,
                             "min(r,c)": minRC,
                             "date": new Date().toISOString(),
@@ -708,22 +708,22 @@ const multiVariateExtras = {
 
                         // Send the data to CODAP
                         try {
-                            await pluginHelper.createItems(correlationCase, multiVariateExtras.dataSetCorrelations.name, iCallback);
-                            multiVariateExtras.log(`Created correlation entry for ${attr_name1} vs ${attr_name2}`);
+                            await pluginHelper.createItems(assocCase, multiVariateExtras.dataSetAssoc.name, iCallback);
+                            multiVariateExtras.log(`Created association entry for ${attr_name1} vs ${attr_name2}`);
                         } catch (error) {
-                            multiVariateExtras.error(`Failed to create correlation entry for ${attr_name1} vs ${attr_name2}: ${error}`);
+                            multiVariateExtras.error(`Failed to create association entry for ${attr_name1} vs ${attr_name2}: ${error}`);
                         }
                     }
                 }
 
-                multiVariateExtras.log("Correlation table computation completed");
+                multiVariateExtras.log("Association table computation completed");
         },
 
         /**
          * Handles user click on "compute table" button in correlation tab
-         * Computes pairwise correlation values and records the results
+         * Computes pairwise association values and records the results
          */
-        computeCorrelationTable: async function () {
+        computeAssocTable: async function () {
             if (!multiVariateExtras.datasetInfo) {
                 multiVariateExtras.warn("No dataset selected for correlation analysis");
                 return;
@@ -732,24 +732,24 @@ const multiVariateExtras = {
             const iCallback = undefined;
 
             try {
-                // Initialize the correlation dataset
-                await multiVariateExtras.handlers.initializeCorrelationTable();
+                // Initialize the association dataset
+                await multiVariateExtras.handlers.initializeAssocTable();
 
-                // Compute and populate correlations
-                await multiVariateExtras.handlers.computeCorrelations(iCallback);
+                // Compute and populate associations
+                await multiVariateExtras.handlers.computeAssociations(iCallback);
             } catch (error) {
-                multiVariateExtras.error(`Error in computeCorrelationTable: ${error}`);
+                multiVariateExtras.error(`Error in computeAssocTable: ${error}`);
                 console.error("Full error details:", error);
             }
         },
 
         /**
-         * Handles user click on "compute and graph correlations" button in correlation tab
-         * Creates the table (if needed), creates the graph, then computes correlations
+         * Handles user click on "compute and graph associations" button in correlation tab
+         * Creates the table (if needed), creates the graph, then computes associations
          * so the user can watch the graph populate as computations progress
          * @param {string} order - Order type: 'alphabetical' (default) or 'table' to use table_order attributes
          */
-        computeAndGraphCorrelations: async function (order = 'alphabetical') {
+        computeAndGraphAssoc: async function (order = 'alphabetical') {
             if (!multiVariateExtras.datasetInfo) {
                 multiVariateExtras.warn("No dataset selected for correlation analysis");
                 return;
@@ -758,18 +758,18 @@ const multiVariateExtras = {
             const iCallback = undefined;
 
             try {
-                // Step 1: Initialize the correlation dataset
-                await multiVariateExtras.handlers.initializeCorrelationTable();
+                // Step 1: Initialize the association dataset
+                await multiVariateExtras.handlers.initializeAssocTable();
 
                 // Step 2: Create the graph (so user can watch it populate)
-                multiVariateExtras.log(`Creating correlation graph with ${order} order...`);
-                await multiVariateExtras.handlers.graphCorrelationTable(null, null, order);
-                multiVariateExtras.log("Correlation graph created successfully");
+                multiVariateExtras.log(`Creating association graph with ${order} order...`);
+                await multiVariateExtras.handlers.graphAssocTable(null, null, order);
+                multiVariateExtras.log("Association graph created successfully");
 
-                // Step 3: Compute and populate correlations (this will populate the graph as it runs)
-                await multiVariateExtras.handlers.computeCorrelations(iCallback);
+                // Step 3: Compute and populate associations (this will populate the graph as it runs)
+                await multiVariateExtras.handlers.computeAssociations(iCallback);
             } catch (error) {
-                multiVariateExtras.error(`Error in computeAndGraphCorrelations: ${error}`);
+                multiVariateExtras.error(`Error in computeAndGraphAssoc: ${error}`);
                 console.error("Full error details:", error);
             }
         },
@@ -808,28 +808,28 @@ const multiVariateExtras = {
 
         /**
          * Handles user click on "create graph" button in correlation tab
-         * Creates a scatter plot graph for correlation visualization using the correlation dataset
+         * Creates a scatter plot graph for association visualization using the association dataset
          * @param {Object} position - Optional position object with x, y coordinates (if not provided, will be calculated relative to plugin window)
          * @param {Object} dimensions - Optional dimensions object with width, height
          * @param {string} order - Optional order type: 'alphabetical' (default) or 'table' to use table_order attributes
          * @returns {Promise} - Promise that resolves with the component ID if successful
          */
-        graphCorrelationTable: async function (position = null, dimensions = null, order = 'alphabetical') {
-            console.log("graphCorrelationTable");
+        graphAssocTable: async function (position = null, dimensions = null, order = 'alphabetical') {
+            console.log("graphAssocTable");
             console.log(position);
             console.log("order:", order);
-            // Check if the correlation dataset exists
-            const correlationDatasetName = multiVariateExtras.dataSetCorrelations.name;
+            // Check if the association dataset exists
+            const assocDatasetName = multiVariateExtras.dataSetAssoc.name;
             
             try {
-                // First, check if the correlation dataset exists
+                // First, check if the association dataset exists
                 const datasetCheck = await codapInterface.sendRequest({
                     action: "get",
-                    resource: `dataContext[${correlationDatasetName}]`
+                    resource: `dataContext[${assocDatasetName}]`
                 });
 
                 if (!datasetCheck.success) {
-                    multiVariateExtras.warn("Correlation dataset not found. Please compute the correlation table first.");
+                    multiVariateExtras.warn("Association dataset not found. Please compute the association table first.");
                     return null;
                 }
 
@@ -848,22 +848,22 @@ const multiVariateExtras = {
                 const predictorAttr = order === 'table' ? "table_order_Predictor" : "Predictor";
                 const responseAttr = order === 'table' ? "table_order_Response" : "Response";
 
-                // Create a scatter plot using the correlation dataset with correlation as legend
+                // Create a scatter plot using the association dataset with association measure as legend
                 const result = await connect.createGraph(
-                    correlationDatasetName,
+                    assocDatasetName,
                     predictorAttr,
                     responseAttr,
-                    "correlation",
+                    "assoc_measure",
  //                   calculatedPosition,
  //                   dimensions
                 );
 
                 if (result.success) {
                     const componentId = result.values.id;
-                    multiVariateExtras.log(`m Created correlation matrix graph, id= ${componentId}`);
-                    console.log("c Created correlation matrix graph, id= ", componentId);
-                    multiVariateExtras.log(`mGraph shows correlation as a color for each pair of attributes`);
-                    console.log("c Graph shows correlation as a color for each pair of attributes");
+                    multiVariateExtras.log(`m Created association matrix graph, id= ${componentId}`);
+                    console.log("c Created association matrix graph, id= ", componentId);
+                    multiVariateExtras.log(`mGraph shows association measure as a color for each pair of attributes`);
+                    console.log("c Graph shows association measure as a color for each pair of attributes");
                     if (calculatedPosition) {
                         multiVariateExtras.log(`Graph attempted to be positioned at x: ${calculatedPosition.x}, y: ${calculatedPosition.y}`);
                         console.log("c Graph attempted to be positioned at x: ", calculatedPosition.x, "y: ", calculatedPosition.y);
@@ -875,15 +875,15 @@ const multiVariateExtras = {
                     }
                     return componentId; // Return the component ID for potential future moves
                 } else {
-                    console.log("c Failed to create correlation graph: ", result.values ? result.values.error : "unknown error");
-                    multiVariateExtras.log("m Failed to create correlation graph: ", result.values ? result.values.error : "unknown error");
+                    console.log("c Failed to create association graph: ", result.values ? result.values.error : "unknown error");
+                    multiVariateExtras.log("m Failed to create association graph: ", result.values ? result.values.error : "unknown error");
                     console.log("c result", result);
                     multiVariateExtras.log("m result", result);
                     return null;
                 }
             } catch (error) {
-                console.log("c Error creating correlation graph: ", error);
-                multiVariateExtras.log("m Error creating correlation graph: ", error);
+                console.log("c Error creating association graph: ", error);
+                multiVariateExtras.log("m Error creating association graph: ", error);
                 return null;
             }
         },
@@ -1744,38 +1744,38 @@ const multiVariateExtras = {
     correlationUtils: (typeof MVE_stat_utils !== 'undefined') ? MVE_stat_utils : {},
 
     /**
-     * Constant object CODAP uses to initialize the correlation dataset
+     * Constant object CODAP uses to initialize the association dataset
      * @type {{name: string, title: string, description: string, collections: [*]}}
      */
-    dataSetCorrelations: {
-        name: "PairwiseCorrelations",
-        title: "PairwiseCorrelations",
-        description: "table of pairwise correlations",
+    dataSetAssoc: {
+        name: "PairwiseAssoc",
+        title: "PairwiseAssoc",
+        description: "table of pairwise associations",
         collections: [
             {
-                name: "PairwiseCorrelations",
+                name: "PairwiseAssoc",
                 parent: null,
                 labels: {
-                    singleCase: "PairwiseCorrelation",
-                    pluralCase: "PairwiseCorrelations",
-                    setOfCasesWithArticle: "set of PairwiseCorrelations"
+                    singleCase: "PairwiseAssoc",
+                    pluralCase: "PairwiseAssoc",
+                    setOfCasesWithArticle: "set of PairwiseAssoc"
                 },
                 attrs: [
                     {name: "TableName", type: 'categorical', description: ""},
                     {name: "Predictor", type: 'categorical', description: "attribute1"},
                     {name: "Response", type: 'categorical', description: "attribute2"},
-                    {name: "correlation", type: 'numeric', precision: 8, description: "correlation coefficient"},
-                    {name: "correlationType", type: 'categorical', description: "type of correlation-like value computed"},
+                    {name: "assoc_measure", type: 'numeric', precision: 8, description: "association measure"},
+                    {name: "assoc_measure_type", type: 'categorical', description: "type of association measure computed"},
                     {name: "nNeitherMissing", type: 'numeric', description: "number of complete cases"},
                     {name: "nCases", type: 'numeric', description: "number of cases INCLUDING blanks"},
                     {name: "nBlanks1", type: 'numeric', description: "number of blanks"},
                     {name: "nBlanks2", type: 'numeric', description: "number of blanks"},
                     {name: "correlBlanks", type: 'numeric', description: "correlation coefficient between missingness indicators"},
-                    {name: "CI_low95", type: 'numeric', description: "low end of naive 95% confidence interval on correlation value"},
-                    {name: "CI_high95", type: 'numeric', description: "high end of naive 95% confidence interval on correlation value"},
-                    {name: "p_value", type: 'numeric', description: "p-value for naive hypothesis test on correlation value"},
-                    {name: "correl_incl_missing", type: 'numeric', precision: 8, description: "correlation coefficient including missing predictor category"},
-                    {name: "p_incl_missing", type: 'numeric', description: "p-value for correlation including missing predictor category"},
+                    {name: "CI_low95", type: 'numeric', description: "low end of naive 95% confidence interval on association measure"},
+                    {name: "CI_high95", type: 'numeric', description: "high end of naive 95% confidence interval on association measure"},
+                    {name: "p_value", type: 'numeric', description: "p-value for naive hypothesis test on association measure"},
+                    {name: "assoc_measure_incl_missing", type: 'numeric', precision: 8, description: "association measure including missing predictor category"},
+                    {name: "p_incl_missing", type: 'numeric', description: "p-value for association measure including missing predictor category"},
                     {name: "min(r,c)", type: 'numeric', description: "min(number of rows, number of columns) for Cramer's V contingency table (blank for other correlation types)"},
                     {name: "date", type: 'categorical', description: "date and time summary done"},
                     {name: "type1", type: 'categorical', description: "type of the first attribute"},
