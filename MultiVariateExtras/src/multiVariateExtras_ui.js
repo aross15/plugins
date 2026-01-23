@@ -29,6 +29,58 @@ limitations under the License.
 /*  global Swal  */
 const multiVariateExtras_ui = {
 
+    /**
+     * Escape a string for use in a JavaScript string literal (single-quoted)
+     * Escapes single quotes, backslashes, and newlines
+     * @param {string} str - The string to escape
+     * @returns {string} The escaped string
+     */
+    escapeJSString: function (str) {
+        if (typeof str !== 'string') {
+            return String(str);
+        }
+        return str
+            .replace(/\\/g, '\\\\')  // Escape backslashes first
+            .replace(/'/g, "\\'")    // Escape single quotes
+            .replace(/\n/g, '\\n')   // Escape newlines
+            .replace(/\r/g, '\\r')   // Escape carriage returns
+            .replace(/\t/g, '\\t');  // Escape tabs
+    },
+
+    /**
+     * Escape a string for use in an HTML attribute value
+     * Escapes quotes and ampersands
+     * @param {string} str - The string to escape
+     * @returns {string} The escaped string
+     */
+    escapeHTMLAttribute: function (str) {
+        if (typeof str !== 'string') {
+            return String(str);
+        }
+        return str
+            .replace(/&/g, '&amp;')  // Escape ampersands first
+            .replace(/"/g, '&quot;')  // Escape double quotes
+            .replace(/'/g, '&#39;');  // Escape single quotes
+    },
+
+    /**
+     * Escape a string for use in an HTML ID attribute
+     * Replaces problematic characters with underscores to ensure valid IDs
+     * @param {string} str - The string to escape
+     * @returns {string} The escaped string safe for use in IDs
+     */
+    escapeHTMLID: function (str) {
+        if (typeof str !== 'string') {
+            return String(str);
+        }
+        // Replace characters that could break IDs (quotes, spaces, etc.) with underscores
+        // This ensures the ID is always valid and can be looked up reliably
+        return str
+            .replace(/['"]/g, '_')      // Replace quotes with underscores
+            .replace(/\s+/g, '_')       // Replace whitespace with underscores
+            .replace(/[^\w\-_]/g, '_'); // Replace any other non-word characters with underscores
+    },
+
     initialize: async function () {
         //  set up the dataset menu
         try {
@@ -312,7 +364,8 @@ const multiVariateExtras_ui = {
         let malformedCount = 0;
 
         attributes.forEach(attr => {
-            const blockInput = document.getElementById(`block-number-input-${attr.name}`);
+            const escapedAttrNameID = multiVariateExtras_ui.escapeHTMLID(attr.name);
+            const blockInput = document.getElementById(`block-number-input-${escapedAttrNameID}`);
             if (blockInput) {
                 const value = blockInput.value;
                 const blockNumber = value !== "" && !isNaN(value) ? parseInt(value, 10) : null;
@@ -419,14 +472,19 @@ const multiVariateExtras_ui = {
             const theHint = isHidden ?
                 `click to include ${attr.name} in plot matrix` :
                 `click to exclude ${attr.name} from plot matrix`;
+            
+            // Escape attribute name for JavaScript string literal
+            const escapedAttrName = multiVariateExtras_ui.escapeJSString(attr.name);
+            // Escape hint for HTML attribute
+            const escapedHint = multiVariateExtras_ui.escapeHTMLAttribute(theHint);
 
             return `<tr>
                 <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">
                     <div draggable="false">
                         <img class="slide-switch" draggable="false"
                             src="${visibilityIconPath}" 
-                            title="${theHint}" 
-                            onclick="multiVariateExtras.handlers.plotMatrixAttributeVisibilityButton('${attr.name}', ${isHidden})" 
+                            title="${escapedHint}" 
+                            onclick="multiVariateExtras.handlers.plotMatrixAttributeVisibilityButton('${escapedAttrName}', ${isHidden})" 
                             alt="plot matrix visibility switch"  
                             style="cursor: pointer;"
                         />
@@ -501,18 +559,23 @@ const multiVariateExtras_ui = {
                 ? multiVariateExtras.blockNumbers.get(attr.name) 
                 : 0;
 
+            // Escape attribute name for JavaScript string literal, HTML attributes, and IDs
+            const escapedAttrName = multiVariateExtras_ui.escapeJSString(attr.name);
+            const escapedAttrNameHTML = multiVariateExtras_ui.escapeHTMLAttribute(attr.name);
+            const escapedAttrNameID = multiVariateExtras_ui.escapeHTMLID(attr.name);
+
             return `<tr>
                 <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">
                     <input 
                         type="number" 
-                        id="block-number-input-${attr.name}" 
-                        data-attribute-name="${attr.name}"
+                        id="block-number-input-${escapedAttrNameID}" 
+                        data-attribute-name="${escapedAttrNameHTML}"
                         value="${currentBlockNumber}" 
                         min="0" 
                         max="100000" 
                         step="1" 
                         style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center;"
-                        onchange="multiVariateExtras.handlers.blockNumberInputChange('${attr.name}')"
+                        onchange="multiVariateExtras.handlers.blockNumberInputChange('${escapedAttrName}')"
                         oninput="multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts()"
                     />
                 </td>
@@ -582,14 +645,19 @@ const multiVariateExtras_ui = {
             const theHint = isHidden ?
                 `click to include ${attr.name} in correlation analysis` :
                 `click to exclude ${attr.name} from correlation analysis`;
+            
+            // Escape attribute name for JavaScript string literal
+            const escapedAttrName = multiVariateExtras_ui.escapeJSString(attr.name);
+            // Escape hint for HTML attribute
+            const escapedHint = multiVariateExtras_ui.escapeHTMLAttribute(theHint);
 
             return `<tr>
                 <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">
                     <div draggable="false">
                         <img class="slide-switch" draggable="false"
                             src="${visibilityIconPath}" 
-                            title="${theHint}" 
-                            onclick="multiVariateExtras.handlers.correlationAttributeVisibilityButton('${attr.name}', ${isHidden})" 
+                            title="${escapedHint}" 
+                            onclick="multiVariateExtras.handlers.correlationAttributeVisibilityButton('${escapedAttrName}', ${isHidden})" 
                             alt="correlation visibility switch"  
                             style="cursor: pointer;"
                         />

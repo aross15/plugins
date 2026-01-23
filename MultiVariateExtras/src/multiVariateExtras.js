@@ -993,7 +993,8 @@ const multiVariateExtras = {
          * @returns {Promise<void>}
          */
         blockNumberInputChange: async function (iAttName) {
-            const blockInput = document.getElementById(`block-number-input-${iAttName}`);
+            const escapedAttrNameID = multiVariateExtras_ui.escapeHTMLID(iAttName);
+            const blockInput = document.getElementById(`block-number-input-${escapedAttrNameID}`);
             if (blockInput) {
                 const value = blockInput.value;
                 const blockNumber = value !== "" && !isNaN(value) ? parseInt(value, 10) : null;
@@ -1054,7 +1055,8 @@ const multiVariateExtras = {
                 
                 // First, ensure block numbers are stored from inputs
                 allAttributes.forEach(attr => {
-                    const blockInput = document.getElementById(`block-number-input-${attr.name}`);
+                    const escapedAttrNameID = multiVariateExtras_ui.escapeHTMLID(attr.name);
+                    const blockInput = document.getElementById(`block-number-input-${escapedAttrNameID}`);
                     if (blockInput) {
                         const value = blockInput.value;
                         const blockNumber = value !== "" && !isNaN(value) ? parseInt(value, 10) : null;
