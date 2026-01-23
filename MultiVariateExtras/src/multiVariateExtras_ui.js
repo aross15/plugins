@@ -31,20 +31,24 @@ const multiVariateExtras_ui = {
 
     /**
      * Escape a string for use in a JavaScript string literal (single-quoted)
-     * Escapes single quotes, backslashes, and newlines
+     * Uses JSON.stringify for robust escaping of all special characters
      * @param {string} str - The string to escape
-     * @returns {string} The escaped string
+     * @returns {string} The escaped string (without surrounding quotes)
      */
     escapeJSString: function (str) {
         if (typeof str !== 'string') {
-            return String(str);
+            str = String(str);
         }
-        return str
-            .replace(/\\/g, '\\\\')  // Escape backslashes first
-            .replace(/'/g, "\\'")    // Escape single quotes
-            .replace(/\n/g, '\\n')   // Escape newlines
-            .replace(/\r/g, '\\r')   // Escape carriage returns
-            .replace(/\t/g, '\\t');  // Escape tabs
+        // Use JSON.stringify to properly escape the string for JavaScript
+        // JSON.stringify handles: quotes, backslashes, newlines, control chars, unicode, etc.
+        const jsonEscaped = JSON.stringify(str);
+        // Remove the surrounding double quotes that JSON.stringify adds
+        let withoutQuotes = jsonEscaped.slice(1, -1);
+        // JSON.stringify uses double quotes, so it escapes \" but not single quotes
+        // Since we're using single quotes in onclick handlers, we need to escape single quotes
+        // We need to escape single quotes, but be careful not to double-escape backslashes
+        // Replace ' with \' but make sure we don't break existing escape sequences
+        return withoutQuotes.replace(/'/g, "\\'");
     },
 
     /**
