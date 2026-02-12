@@ -1656,7 +1656,8 @@ const multiVariateExtras = {
                                 action: "update",
                                 resource: `component[${componentId}]`,
                                 "values": {
-                                    "pointsAreFusedIntoBars": true
+                                    "pointsAreFusedIntoBars": true,
+                                    "barChartScale": "percent"
                                 }
 
                                 // values: {

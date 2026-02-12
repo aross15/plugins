@@ -477,18 +477,19 @@ const multiVariateExtras_ui = {
                 `click to include ${attr.name} in plot matrix` :
                 `click to exclude ${attr.name} from plot matrix`;
             
-            // Escape attribute name for JavaScript string literal
-            const escapedAttrName = multiVariateExtras_ui.escapeJSString(attr.name);
             // Escape hint for HTML attribute
             const escapedHint = multiVariateExtras_ui.escapeHTMLAttribute(theHint);
+            // Escape attribute name for HTML data attribute (use HTML attribute escaping)
+            const escapedAttrNameForData = multiVariateExtras_ui.escapeHTMLAttribute(attr.name);
 
             return `<tr>
                 <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">
                     <div draggable="false">
-                        <img class="slide-switch" draggable="false"
+                        <img class="slide-switch plot-matrix-visibility-toggle" draggable="false"
                             src="${visibilityIconPath}" 
                             title="${escapedHint}" 
-                            onclick="multiVariateExtras.handlers.plotMatrixAttributeVisibilityButton('${escapedAttrName}', ${isHidden})" 
+                            data-attribute-name="${escapedAttrNameForData}"
+                            data-is-hidden="${isHidden}"
                             alt="plot matrix visibility switch"  
                             style="cursor: pointer;"
                         />
@@ -519,6 +520,18 @@ const multiVariateExtras_ui = {
             const tbody = document.getElementById(this.tbodyID);
             if (tbody) {
                 tbody.innerHTML = this.make();
+                
+                // Add event listeners to all visibility toggle buttons
+                const toggleButtons = tbody.querySelectorAll('.plot-matrix-visibility-toggle');
+                toggleButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const attrName = this.getAttribute('data-attribute-name');
+                        const isHidden = this.getAttribute('data-is-hidden') === 'true';
+                        if (attrName && multiVariateExtras.handlers.plotMatrixAttributeVisibilityButton) {
+                            multiVariateExtras.handlers.plotMatrixAttributeVisibilityButton(attrName, isHidden);
+                        }
+                    });
+                });
             }
             // Update the attribute count notice after installing the table
             multiVariateExtras_ui.updatePlotMatrixAttributeCounts();
@@ -563,8 +576,7 @@ const multiVariateExtras_ui = {
                 ? multiVariateExtras.blockNumbers.get(attr.name) 
                 : 0;
 
-            // Escape attribute name for JavaScript string literal, HTML attributes, and IDs
-            const escapedAttrName = multiVariateExtras_ui.escapeJSString(attr.name);
+            // Escape attribute name for HTML attributes and IDs
             const escapedAttrNameHTML = multiVariateExtras_ui.escapeHTMLAttribute(attr.name);
             const escapedAttrNameID = multiVariateExtras_ui.escapeHTMLID(attr.name);
 
@@ -572,6 +584,7 @@ const multiVariateExtras_ui = {
                 <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">
                     <input 
                         type="number" 
+                        class="block-number-input"
                         id="block-number-input-${escapedAttrNameID}" 
                         data-attribute-name="${escapedAttrNameHTML}"
                         value="${currentBlockNumber}" 
@@ -579,8 +592,6 @@ const multiVariateExtras_ui = {
                         max="100000" 
                         step="1" 
                         style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center;"
-                        onchange="multiVariateExtras.handlers.blockNumberInputChange('${escapedAttrName}')"
-                        oninput="multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts()"
                     />
                 </td>
                 <td style="text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; color: #666;">
@@ -599,6 +610,20 @@ const multiVariateExtras_ui = {
             const tbody = document.getElementById(this.tbodyID);
             if (tbody) {
                 tbody.innerHTML = this.make();
+                
+                // Add event listeners to all block number inputs
+                const blockInputs = tbody.querySelectorAll('.block-number-input');
+                blockInputs.forEach(input => {
+                    input.addEventListener('change', function() {
+                        const attrName = this.getAttribute('data-attribute-name');
+                        if (attrName && multiVariateExtras.handlers.blockNumberInputChange) {
+                            multiVariateExtras.handlers.blockNumberInputChange(attrName);
+                        }
+                    });
+                    input.addEventListener('input', function() {
+                        multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts();
+                    });
+                });
             }
             // Update the attribute count notice after installing the table
             multiVariateExtras_ui.updateBlocksOfPlotsAttributeCounts();
@@ -650,18 +675,19 @@ const multiVariateExtras_ui = {
                 `click to include ${attr.name} in correlation analysis` :
                 `click to exclude ${attr.name} from correlation analysis`;
             
-            // Escape attribute name for JavaScript string literal
-            const escapedAttrName = multiVariateExtras_ui.escapeJSString(attr.name);
             // Escape hint for HTML attribute
             const escapedHint = multiVariateExtras_ui.escapeHTMLAttribute(theHint);
+            // Escape attribute name for HTML data attribute (use HTML attribute escaping)
+            const escapedAttrNameForData = multiVariateExtras_ui.escapeHTMLAttribute(attr.name);
 
             return `<tr>
                 <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">
                     <div draggable="false">
-                        <img class="slide-switch" draggable="false"
+                        <img class="slide-switch correlation-visibility-toggle" draggable="false"
                             src="${visibilityIconPath}" 
                             title="${escapedHint}" 
-                            onclick="multiVariateExtras.handlers.correlationAttributeVisibilityButton('${escapedAttrName}', ${isHidden})" 
+                            data-attribute-name="${escapedAttrNameForData}"
+                            data-is-hidden="${isHidden}"
                             alt="correlation visibility switch"  
                             style="cursor: pointer;"
                         />
@@ -683,6 +709,18 @@ const multiVariateExtras_ui = {
             const tbody = document.getElementById(this.tbodyID);
             if (tbody) {
                 tbody.innerHTML = this.make();
+                
+                // Add event listeners to all visibility toggle buttons
+                const toggleButtons = tbody.querySelectorAll('.correlation-visibility-toggle');
+                toggleButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const attrName = this.getAttribute('data-attribute-name');
+                        const isHidden = this.getAttribute('data-is-hidden') === 'true';
+                        if (attrName && multiVariateExtras.handlers.correlationAttributeVisibilityButton) {
+                            multiVariateExtras.handlers.correlationAttributeVisibilityButton(attrName, isHidden);
+                        }
+                    });
+                });
             }
         }
     },
