@@ -1536,7 +1536,7 @@ const MVE_stat_utils = {
      * @param {number} convergenceThreshold - Convergence threshold (default 1e-6)
      * @returns {Object} Object with intercept, coefficients, predictorNames, nIterations, converged, attemptedPredictorNames, attemptedNumTerms
      */
-    runMultipleRegression: function(allCases, predictorAttrNames, responseAttrName, attributes, maxIter = 50, convergenceThreshold = 1e-6) {
+    runMultipleRegression: function(allCases, predictorAttrNames, responseAttrName, attributes, maxIter = 50000, convergenceThreshold = 1e-6) {
         console.log("runMultipleRegression: Starting multiple regression");
         console.log(`runMultipleRegression: Requested predictors: ${predictorAttrNames.join(', ')}`);
         console.log(`runMultipleRegression: Response: ${responseAttrName}`);
